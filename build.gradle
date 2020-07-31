@@ -1,0 +1,110 @@
+apply plugin: 'java'
+
+defaultTasks 'clean', 'build'
+
+ext {
+    startTime = new Date()
+    
+    env = System.getenv()
+    jvmVersion = org.gradle.internal.jvm.Jvm.current()
+    package_version = "1.0.0"
+    project_vendor = ""
+    twx_eclipse_plugin_version = ""
+    
+    loadExtensionProperties()
+    
+    buildNumber = System.getenv("BUILD_NUMBER") ?: package_version
+    
+    jarName = project.name + ".jar"
+    zipName = project.name + ".zip"
+}
+
+def loadExtensionProperties() {
+    def props = new Properties()
+    def propFile = file("extension.properties") 
+    if (propFile.exists()) {
+        propFile.withInputStream {
+            stream -> props.load(stream)
+        }
+    } else {
+        logger.warn('WARNING - Properties file: extension.properties, does not exist! Extension META.INF will not have all extension details.')
+    }
+    props.each { key, val ->
+        project.ext[key] = val
+    }
+}
+
+dependencies {
+    compile fileTree(dir:'twx-lib', include:'*.jar')
+    compile fileTree(dir:'lib', include:'*.jar')
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src'
+        }
+    }
+}
+
+jar {
+    archiveName = jarName
+    project.logger.warn('sourceSets.main.output: '+sourceSets.main.output)
+    from (sourceSets.main.output) {
+        include '**/*.class'
+    }
+    
+    manifest {
+        attributes("Created-By": jvmVersion,
+            "Built-By": "Eclipse Plugin for ThingWorx Extension Development " + twx_eclipse_plugin_version,
+            "Build-Date": startTime)
+        attributes( [ "Package-Title": project.name,
+            "Package-Version": buildNumber,
+            "Package-Vendor": project_vendor ], project.name)
+    }
+}
+
+task createZip(type:Zip) {
+     archiveName = zipName
+
+    // include the metadata.xml
+    from 'configfiles'
+        include 'metadata.xml'
+    
+    if (!fileTree('src').isEmpty()) { // if any java exists
+        // this will include the built jar for this extension's java code
+        from ('build/libs') {
+            include jarName
+            into 'lib/common'
+        }
+    }
+        
+    // include the Entity xml files included in this plugin
+    from ('Entities') {
+        include '**/*.xml'
+        into 'Entities'
+    }
+
+    // include the Localization json files included in this plugin
+    from ('Localization') {
+        include '**/*.json'
+        into 'Localization'
+    }
+
+    // including all jars from the lib folder
+    from ('lib') {
+        include '**/*.jar'
+        into 'lib/common'
+    }
+    
+    // for if there are widgets in the extension
+    from ('ui') {
+        include '**/*.*'
+        into 'ui'
+    }
+    
+}
+
+createZip.dependsOn('jar')
+
+build.finalizedBy(createZip)

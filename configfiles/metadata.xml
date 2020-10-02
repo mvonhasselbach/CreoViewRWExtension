@@ -5,10 +5,11 @@
             <JarResources>
                 <FileResource description="" file="CreoViewRWExtension.jar" type="JAR"/>
                 <FileResource description="" file="vecmath.jar" type="JAR"/>
+                <FileResource description="" file="j3dcore.jar" type="JAR"/>
             </JarResources>
         </ExtensionPackage>
     </ExtensionPackages>
     <Resources>
-        <Resource aspect.isCreatable="false" aspect.isEditableExtensionObject="false" className="com.ptc.octo.creoview.CreoViewRWHelper" description="Resource to read and write the structure and attributes of a CreoView file" name="CreoViewRWHelper"/>
+        <Resource aspect.isCreatable="false" aspect.isEditableExtensionObject="false" className="com.ptc.octo.creoview.CreoViewRWResource" description="Resource to read and write the structure and attributes of a CreoView file" name="CreoViewRWHelper"/>
     </Resources>
 </Entities>

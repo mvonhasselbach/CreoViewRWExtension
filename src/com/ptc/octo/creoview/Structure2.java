@@ -17,7 +17,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,7 +28,6 @@ import java.net.URLConnection;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Enumeration;
@@ -46,8 +44,6 @@ import java.util.StringTokenizer;
 //import java.util.logging.Level;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.vecmath.Matrix3d;
@@ -55,9 +51,6 @@ import javax.vecmath.Matrix4d;
 import javax.vecmath.Quat4d;
 import javax.vecmath.Vector3d;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -385,7 +378,7 @@ public class Structure2 // extends Structure
 	// private static final String ED_ZERO = "0";
 	// private static final String ED_ZERO_ZERO = " 0 0 ";
 	// private static final String ED_ONE = "1";
-	private static final String ED_SPACE = " ";
+	//private static final String ED_SPACE = " ";
 	// private static final String ED_NULL = "";
 	// private static final String ED_T = "T ";
 	// private static final String ED_C = "C ";
@@ -535,358 +528,7 @@ public class Structure2 // extends Structure
 	private boolean fileMapFullyPopulateOnRead = false;
 
 	// mvh:start
-	public static void main(String[] args) {
-		try {
-			JSONObject json = getJSONFromPVFile(args[0], null);
-			System.out.print(json.toString(3));
 
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-
-	public static JSONObject getJSONFromPVFile(String filename, String[] properties)
-			throws IOException, FileNotFoundException, Exception, JSONException {
-		InputStream stream = null;
-		ZipFile zipFile = null;
-		if (filename.endsWith(".pvz")) {
-			zipFile = new ZipFile(filename);
-			Enumeration<? extends ZipEntry> entries = zipFile.entries();
-			while (entries.hasMoreElements()) {
-				ZipEntry entry = entries.nextElement();
-				if (entry.getName().endsWith(".pvs"))
-					stream = new BufferedInputStream(zipFile.getInputStream(entry), BUFFER_SIZE_4096);
-			}
-		} else { // assuming a .pvs file
-			stream = new BufferedInputStream(new FileInputStream(filename), BUFFER_SIZE_4096);
-		}
-		JSONObject json = getJSONFromPVS(stream);
-		// reduce the json output to the specified list of properties now
-		if(properties !=null) reduceJSON2Props(json, properties);
-		if (stream != null)
-			stream.close();
-		if (zipFile != null)
-			zipFile.close();
-		return json;
-	}
-
-	public static void reduceJSON2Props(JSONObject json, String[] properties) {
-		List<String> props = Arrays.asList(properties);
-		ArrayList<String> keys2remove = new ArrayList<String>();
-		for (Iterator<String> keysIt = json.keys(); keysIt.hasNext();) {
-			String key = keysIt.next();
-			Object val;
-			try {
-				val = json.get(key);
-				if (val instanceof JSONArray) {
-					for (int i = 0; i < ((JSONArray) val).length(); i++) {
-						JSONObject child = (JSONObject) ((JSONArray) val).get(i);
-						reduceJSON2Props(child, properties);
-					}
-				} else if (val instanceof JSONObject) {
-					reduceJSON2Props((JSONObject) val, properties);
-				} else if (!props.contains(key)) keys2remove.add(key);
-			} catch (JSONException e) {
-				// shouldn't happen
-				e.printStackTrace();
-			}
-
-		}
-		for(String key : keys2remove)json.remove(key);
-	}
-
-	public static JSONObject getJSONFromPVS(InputStream pvsInputStream) throws Exception, JSONException {
-		Structure2.Comp comp = Structure2.readEDStructureToComp(pvsInputStream);
-		DefaultMutableTreeNode node = structure2ToIeTree(comp, null, null);
-		calculateTransformation(node);
-		JSONObject json = getJSONFromDefMutTree(node);
-		return json;
-	}
-
-	private static JSONObject getJSONFromDefMutTree(DefaultMutableTreeNode node) throws JSONException {
-		JSONObject json = (JSONObject) node.getUserObject();
-		JSONArray childs = new JSONArray();
-		for (Object child : Collections.list(node.children())) {
-			JSONObject cn = getJSONFromDefMutTree((DefaultMutableTreeNode) child);
-			//childs.push(cn);
-			childs.put(cn);
-		}
-		json.put("components", childs);
-		return json;
-	}
-
-	/**
-	 * if this should be spit out as a structure like the one in Steve Ghees pvs2json conversion we'd have to:
-	 * 1. Separate all nodes with properties in the top-level components[]
-	 * 2. add a cid (incremented idx) and vid (=pvs_inst_id)
-	 * 3. create nested children[] as we do right now BUT only keep compInt/link params
-	 * 4. create idmap with cid, path, idx (either idx of siblings or =vid) and par (=parent vid)
-	 * @param comp
-	 * @param compInst
-	 * @param pnode
-	 * @return
-	 * @throws JSONException
-	 */
-	private static DefaultMutableTreeNode structure2ToIeTree(Structure2.Comp comp, Structure2.CompInst compInst,
-			DefaultMutableTreeNode pnode) throws JSONException {
-		//TODO: having these as static params is not nice - they should be specific to the method invocation
-		boolean isNestedLinkProperties=true;
-		boolean isNestedPartProperties=true;
-
-		JSONObject el = new JSONObject();		
-		// Element el = new Element();
-		Hashtable compAttrs = comp.properties;
-		if (compAttrs != null) {
-			JSONObject propEl = el;
-			if(isNestedPartProperties) {
-				propEl = new JSONObject();
-				el.put("properties", propEl);
-			}
-			Enumeration<?> attKeys = compAttrs.keys();
-			while (attKeys.hasMoreElements()) {
-				String attrName = (String) attKeys.nextElement();
-				String attValue = Structure2.getPropertyStringValue(comp, attrName);
-				if (attValue != null)
-					propEl.put(attrName, attValue);
-				// log.debug("Comp attrName:"+attrName+" attValue:"+attValue);
-			}
-		}
-
-		String val = comp.filename;
-		if (val != null)
-			el.put("pvs_filename", comp.filename);
-
-		el.put("pvs_shape", comp.shape);
-		el.put("pvs_name", comp.name);
-		el.put("pvs_type", comp.type);
-		
-		el.put("pvs_bbox", comp.bbox);
-		el.put("pvs_writeIdx", comp.writeIdx);
-		el.put("pvs_wvs_info", comp.wvs_info);
-		el.put("pvs_source_part_name", comp.getSourcePartName());
-		el.put("pvs_source_file_name", comp.getSourceFileName());
-		el.put("pvs_source_form_name", comp.getSourceFormName());
-
-		if (compInst != null) {
-			Hashtable compInstAttrs = compInst.properties;
-			if (compInstAttrs != null) {
-				JSONObject propEl = el;
-				if(isNestedPartProperties) {
-					propEl = new JSONObject();
-					String propName = isNestedLinkProperties ? "link_properties" : "properties";
-					el.put( propName, propEl);
-				}
-				Enumeration<?> instAttrKeys = compInstAttrs.keys();
-				while (instAttrKeys.hasMoreElements()) {
-					String attrName = (String) instAttrKeys.nextElement();
-					String attValue = Structure2.getPropertyStringValue(compInst, attrName);
-					if (attValue != null)
-						el.put(attrName, attValue);
-					// log.debug("CompInst attrName:"+attrName+" attValue:"+attValue);
-				}
-			}
-			Matrix4d mat = Structure2.getMatrix4dFromTranslationAndOrientation(compInst.translation,
-					compInst.orientation);
-			el.put("pvs_mat4d", mat);
-			String location = getLocationfromMatrix(mat);
-			el.put("pvs_location", location);
-			el.put("pvs_inst_id", compInst.id);
-			el.put("pvs_inst_name", compInst.name);
-			el.put("pvs_inst_type", compInst.type);			
-		}
-		DefaultMutableTreeNode node = new DefaultMutableTreeNode(el);
-		if (pnode != null) pnode.add(node);
-		Object[] nodeObjs = node.getUserObjectPath();
-		String path = "";
-		for (Object obj : nodeObjs) {
-			String pId = ((JSONObject)obj).optString("pvs_inst_id");
-			if(!pId.equals("")) path+="/"+pId;
-		}
-		el.put("pvs_path", path);
-		for (Object ccompInst : comp.childInsts) {
-			structure2ToIeTree(((Structure2.CompInst) ccompInst).child, (Structure2.CompInst) ccompInst, node);
-		}
-		return node;
-	}
-
-	public static DefaultMutableTreeNode calculateTransformation(DefaultMutableTreeNode parentNode) throws Exception {
-
-		Matrix4d pAbsMx4 = getAbsMatrix4dOfElement((JSONObject) parentNode.getUserObject());
-
-		Enumeration childs = parentNode.children();
-		while (childs.hasMoreElements()) {
-			DefaultMutableTreeNode node = (DefaultMutableTreeNode) childs.nextElement();
-			JSONObject el = (JSONObject) node.getUserObject();
-			Matrix4d cRelMx4 = getRelMatrix4dOfElement(el);
-			Matrix4d cAbsMx4 = new Matrix4d();
-			cAbsMx4.mul(pAbsMx4, cRelMx4);
-
-			//addAbsMatrix4dToElement(el, cAbsMx4);
-			String absLocation = getLocationfromMatrix(cAbsMx4);
-			el.put("pvs_abs_location", absLocation);
-
-			calculateTransformation(node);
-
-		}
-		return parentNode;
-	}
-
-	private static Matrix4d getAbsMatrix4dOfElement(JSONObject el) throws NumberFormatException, JSONException {
-		Matrix4d absMat4d = (Matrix4d) el.opt("pvs_abs_mat4d");
-		if (absMat4d == null) {
-			absMat4d = new Matrix4d(1d, 0d, 0d, 0d, 0d, 1d, 0d, 0d, 0d, 0d, 1d, 0d, 0d, 0d, 0d, 1d);
-			el.put("pvs_abs_mat4d", absMat4d);
-		}
-		return absMat4d;
-		// return getMatrix4dOfElement(el,new
-		// String[]{"abs_x_x","abs_x_y","abs_x_z","abs_y_x","abs_y_y","abs_y_z","abs_z_x","abs_z_y","abs_z_z","abs_p_x","abs_p_y","abs_p_z","abs_scale"});
-	}
-
-	// private static Matrix4d getMatrix4dOfElement(JSONObject el, String[]
-	// matAttNames) {
-	// double p_x = el.optDouble(matAttNames[9], 0.0d);
-	// double p_y = el.optDouble(matAttNames[10], 0.0d);
-	// double p_z = el.optDouble(matAttNames[11], 0.0d);
-	// double z_x = el.optDouble(matAttNames[6], 0.0d);
-	// double z_y = el.optDouble(matAttNames[7], 0.0d);
-	// double z_z = el.optDouble(matAttNames[8], 1.0d);
-	// double y_x = el.optDouble(matAttNames[3], 0.0d);
-	// double y_y = el.optDouble(matAttNames[4], 1.0d);
-	// double y_z = el.optDouble(matAttNames[5], 0.0d);
-	// double x_x = el.optDouble(matAttNames[0], 1.0d);
-	// double x_y = el.optDouble(matAttNames[1], 0.0d);
-	// double x_z = el.optDouble(matAttNames[2], 0.0d);
-	// double scale = el.optDouble(matAttNames[12], 1.0d);
-	//
-	// Matrix4d mx4 = new Matrix4d(x_x, y_x, z_x, p_x, x_y, y_y, z_y, p_y, x_z, y_z,
-	// z_z, p_z, 0.0d, 0.0d, 0.0d, scale);
-	// return mx4;
-	// }
-
-	@SuppressWarnings("unused")
-	private static void addMatrix4dToElement(JSONObject el, Matrix4d mx4, String[] matAttNames, String matName)
-			throws JSONException {
-		if (matAttNames != null && matAttNames.length == 13) {
-
-			el.put(matAttNames[0], new Double(mx4.m00));
-			el.put(matAttNames[1], new Double(mx4.m10));
-			el.put(matAttNames[2], new Double(mx4.m20));
-			el.put(matAttNames[3], new Double(mx4.m01));
-			el.put(matAttNames[4], new Double(mx4.m11));
-			el.put(matAttNames[5], new Double(mx4.m21));
-			el.put(matAttNames[6], new Double(mx4.m02));
-			el.put(matAttNames[7], new Double(mx4.m12));
-			el.put(matAttNames[8], new Double(mx4.m22));
-			el.put(matAttNames[9], new Double(mx4.m03));
-			el.put(matAttNames[10], new Double(mx4.m13));
-			el.put(matAttNames[11], new Double(mx4.m23));
-			el.put(matAttNames[12], new Double(mx4.m33));
-		}
-		if (matName != null)
-			el.put(matName, mx4);
-	}
-
-	private static Matrix4d getRelMatrix4dOfElement(JSONObject el) throws NumberFormatException, JSONException {
-		Matrix4d relMat4d = (Matrix4d) el.opt("pvs_mat4d");
-		if (relMat4d == null) {
-			relMat4d = new Matrix4d(1d, 0d, 0d, 0d, 0d, 1d, 0d, 0d, 0d, 0d, 1d, 0d, 0d, 0d, 0d, 1d);
-			el.put("pvs_mat4d", relMat4d);
-		}
-		return relMat4d;
-		// return getMatrix4dOfElement(el,new
-		// String[]{"x_x","x_y","x_z","y_x","y_y","y_z","z_x","z_y","z_z","p_x","p_y","p_z","scale"});
-
-	}
-
-//	private static void addAbsMatrix4dToElement(JSONObject el, Matrix4d mx4_abs) throws JSONException {
-//		addMatrix4dToElement(el, mx4_abs, new String[] { "abs_x_x", "abs_x_y", "abs_x_z", "abs_y_x", "abs_y_y",
-//				"abs_y_z", "abs_z_x", "abs_z_y", "abs_z_z", "abs_p_x", "abs_p_y", "abs_p_z", "abs_scale" },
-//				"pvs_abs_mat4d");
-//	}
-
-	public static String getLocationfromMatrix(Matrix4d mat) {
-		String location = ""; //$NON-NLS-1$
-
-		Vector3d a = getRotationFromMatrix4d2(mat);
-		Vector3d v = getTranslationFromMatrix4d_2(mat);
-
-		// handle possible scaling, generaly this will be 1.0 or -1.0 (CATIA mirroring)
-		// if it is 1.0 then keep life simple and leave it off, it is optional for PV
-		double scale = getScaleFromMatrix4d(mat);
-		if (Math.abs(scale - 1.0) > 0.0001) {
-			location = truncate(a.x) + ED_SPACE + truncate(a.y) + ED_SPACE + truncate(a.z) + ED_SPACE + truncate(v.x)
-					+ ED_SPACE + truncate(v.y) + ED_SPACE + truncate(v.z) + ED_SPACE + Double.toString(scale);
-		} else {
-			location = truncate(a.x) + ED_SPACE + truncate(a.y) + ED_SPACE + truncate(a.z) + ED_SPACE + truncate(v.x)
-					+ ED_SPACE + truncate(v.y) + ED_SPACE + truncate(v.z) + ED_SPACE;
-		}
-		return location;
-	}
-
-	/**
-	 * Extracts the rotation angles (in degrees) from a Matrix4d
-	 *
-	 * mirroring changes are from Erik Rieger multiply all components of the
-	 * rotational matrix with the determinant, so that mirroring along an axis is
-	 * covered. (of course, the determinant is then also considered when calculating
-	 * the scale) only use the upper 3*3 elements to calculate the determinant, also
-	 * make certain passed in Matrix is not changed.
-	 *
-	 * <BR>
-	 * <BR>
-	 * <B>Supported API: </B>false
-	 *
-	 * @return rotation angles
-	 **/
-	public static Vector3d getRotationFromMatrix4d2(Matrix4d mat) {
-		double ax, ay, az;
-
-		if (mat.determinant() > 0.0) {
-			ax = Math.atan2(mat.m21, mat.m22) / DTOR;
-			ay = -Math.asin(mat.m20) / DTOR;
-			az = Math.atan2(mat.m10, mat.m00) / DTOR;
-		} else {
-			Matrix3d rotMat = new Matrix3d();
-			mat.getRotationScale(rotMat);
-			rotMat.mul(-1.0D);
-
-			ax = Math.atan2(rotMat.m21, rotMat.m22) / DTOR;
-			ay = -Math.asin(rotMat.m20) / DTOR;
-			az = Math.atan2(rotMat.m10, rotMat.m00) / DTOR;
-		}
-
-		return new Vector3d(ax, ay, az);
-	}
-
-	public static Vector3d getTranslationFromMatrix4d_2(Matrix4d matrix4d) {
-		Vector3d vector3d = new Vector3d();
-		matrix4d.get(vector3d);
-		return vector3d;
-	}
-
-	public static double getScaleFromMatrix4d(Matrix4d matrix4d) {
-		if (matrix4d.determinant() > 0.0D)
-			return matrix4d.getScale();
-		else
-			return -matrix4d.getScale();
-	}
-
-	/**
-	 * Extracts the uniform scale from a Matrix4d the sign of the scale will
-	 * indicate if the matrix is mirrored or not <BR>
-	 * <BR>
-	 * <B>Supported API: </B>false
-	 *
-	 * @return scale
-	 **/
-
-	private static String truncate(double value) {
-		if (Math.abs(value) < 0.0000001) {
-			return "0.0";
-		}
-		return Float.toString((float) value);
-	}
 
 	//////////////////// static read methods ///////////////////////////
 

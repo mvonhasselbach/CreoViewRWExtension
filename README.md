@@ -48,5 +48,5 @@ You can use this service in multiple different scenarios where you want to work 
 - You want to merge metadata from different sources and show them in the experience in the same way you show Windchill/CAD metadata.
 
 
-Endless posibilities...
+Endless possibilities...
 A lot of those things can also be done client-side inside the Experience. This extension gives you a choice where to do it.

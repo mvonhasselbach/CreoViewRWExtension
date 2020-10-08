@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -16,6 +17,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -30,9 +32,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ptc.octo.creoview.Structure2.CompInst;
 
 public class CreoViewRWHelper {
 
+	private static final String BOUNDING_BOX = "Bounding Box";
 	private static final Logger logger = LoggerFactory.getLogger(CreoViewRWHelper.class);
 	//private static int BUFFER_SIZE_4096 = 8192;
 	public static final int PVS2JSON = 3;
@@ -46,9 +50,10 @@ public class CreoViewRWHelper {
 	//private static final String CALCULATED_BOUNDING_BOX = "Calculated Bounding Box";
 	
 	public static void main(String[] args) {
+		System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
+		System.out.println("logger class: "+logger.getClass());
 		try {
 			if(args.length<1) throw new Exception("You need at least one arg (the CreoView file)!");
-			System.out.println("args: "+args[2]);
 			JSONObject json = getJSONFromPVFile(
 					args[0], 
 					args.length>1 ? args[1] : null, 
@@ -64,28 +69,55 @@ public class CreoViewRWHelper {
 	public static JSONObject getJSONFromPVFile(String filename, String jsonFormat, String returnedProperties)
 			throws IOException, FileNotFoundException, Exception, JSONException {
 		JSONObject json = new JSONObject();
-		InputStream stream = null;
+		//InputStream stream = null;
 		File pvFile = new File(filename);
 		if(!pvFile.exists() || !pvFile.canRead()) throw new Exception("CreoView file: "+filename+" doesn't exist (or is not readable)!");
 
+		Structure2 sed2 = new Structure2();		
 		Map<String, InputStream> edpInputStreamMap = null;
+		//check if we have a simple pvs file or if we have a pvz that may have proxy comps and nested pvs files
+		BufferedInputStream stream;
 		if(pvFile.getName().endsWith(".pvs")) {
 			stream = new BufferedInputStream(new FileInputStream(pvFile), 8192);
+			sed2.readED(stream);
+			stream.close();
 		}else {
+			ZipFile pvzFile=null;
 			try {
-				ZipFile pvzFile = new ZipFile(pvFile);
+				pvzFile = new ZipFile(pvFile);
 				Enumeration<? extends ZipEntry> pvEntries = pvzFile.entries();
+				HashMap<String, ZipEntry> pvsFiles = new HashMap<>();
 				while(pvEntries.hasMoreElements()) {
 					ZipEntry pvEntry = pvEntries.nextElement();
 					if(pvEntry.getName().endsWith(".ol")) continue;
-					else if(pvEntry.getName().endsWith(".pvs")) stream = new BufferedInputStream(pvzFile.getInputStream(pvEntry), 8192);
+					//have to get the root dir pvs, for proxy pvs resolution!
+					else if(pvEntry.getName().endsWith(".pvs")) {
+						pvsFiles.put(pvEntry.getName(), pvEntry);
+					}
 					else {
 						if(edpInputStreamMap==null) edpInputStreamMap = new HashMap<String, InputStream>();
 						edpInputStreamMap.put(pvEntry.getName(), new BufferedInputStream(pvzFile.getInputStream(pvEntry), 8192));
 					}
 				}
+				logger.trace("pvsFiles: "+pvsFiles);
+				ZipEntry rootPvsEntry = pvsFiles.get("/"+pvFile.getName().replace(".pvz", ".pvs"));
+				if(rootPvsEntry==null) {
+					for (String pvsName : pvsFiles.keySet()) {
+						if(pvsName.split("/").length==1) rootPvsEntry = pvsFiles.get(pvsName);
+					}
+				}
+				if(rootPvsEntry==null) throw new Exception("No .pvs file on first level of pvz zip file");
+				stream = new BufferedInputStream(pvzFile.getInputStream(rootPvsEntry), 8192);
+				sed2.setEDPInputStreamMap(edpInputStreamMap);
+				sed2.setCloseInputStreams(true);
+				sed2.readED(stream);
+				// now resolve and merge proxy comps
+				resolveAndMergeProxyComps(sed2.getRootComp(), "", pvzFile, edpInputStreamMap);
+
 			}catch(Exception ex) {
 				throw new Exception("The creoView file you specified is neither a .pvs file nor a pvz (ie. zip-based file)", ex);
+			}finally {
+				if(pvzFile!=null) pvzFile.close();
 			}
 		}
 		int format = jsonFormat==null ? CreoViewRWHelper.DEFAULT : 
@@ -94,12 +126,42 @@ public class CreoViewRWHelper {
 					jsonFormat.equalsIgnoreCase("WT_STRUCTURE2") ? CreoViewRWHelper.WT_STRUCTURE2 :
 					jsonFormat.equalsIgnoreCase("PVS2JSON") ? CreoViewRWHelper.PVS2JSON : CreoViewRWHelper.DEFAULT;
 
-		json = CreoViewRWHelper.getJSONFromPVS(stream, edpInputStreamMap, format);
+		json = CreoViewRWHelper.getJSONFromSed2(sed2, format);
 		// reduce the json output to the specified list of properties now
 		if(returnedProperties !=null) CreoViewRWHelper.reduceJSON2Props(json, returnedProperties.split(","));
 		if (stream != null) stream.close();
 		
 		return json;
+	}
+
+	private static void resolveAndMergeProxyComps(Structure2.Comp comp, String parentPath, ZipFile pvzFile, Map<String, InputStream> edpInputStreamMap) throws Exception {
+		logger.trace("comp: "+comp.name+" is proxy?: "+comp.proxy );
+		String myPath = parentPath;
+		if(comp.isProxy()) {
+			String proxyFN = comp.getSourceFileName();
+			if(proxyFN==null) proxyFN=comp.filename;
+			if(proxyFN!=null) { 
+				logger.trace("Found proxy comp: "+comp.name+" with sourcefilename: "+proxyFN);
+				logger.trace(""+comp);
+				proxyFN = parentPath+proxyFN.replace('\\', '/');
+				ZipEntry proxyPVSFile = pvzFile.getEntry(proxyFN);
+				myPath = proxyFN.substring(0, proxyFN.lastIndexOf('/')+1);
+				logger.trace("myPath: "+myPath);
+				if(proxyPVSFile!=null) {
+					Structure2 sed2 = new Structure2();
+					BufferedInputStream stream = new BufferedInputStream(pvzFile.getInputStream(proxyPVSFile), 8192);
+					sed2.setEDPInputStreamMap(edpInputStreamMap);
+					sed2.setCloseInputStreams(true);
+					sed2.readED(stream);
+					logger.trace("now merging "+comp+" with "+sed2.getRootComp());
+					Structure2.mergeStructure(comp, sed2.getRootComp(), true, false);
+				}else logger.warn("Proxy PVS File: "+proxyFN+" does not exist in pvzFile: "+pvzFile.getName()+"! Skipping proxy merge..." );
+			}else logger.warn("Comp is proxy but has no File: "+comp+"! Skipping proxy merge..." );
+		}
+		for (Iterator<CompInst> it = comp.children(); it.hasNext();) {
+			CompInst compInst = it.next();
+			resolveAndMergeProxyComps(compInst.child, myPath, pvzFile, edpInputStreamMap);
+		}
 	}
 
 	/**
@@ -112,11 +174,7 @@ public class CreoViewRWHelper {
 	 * @throws Exception
 	 * @throws JSONException
 	 */
-	public static JSONObject getJSONFromPVS(InputStream pvsInputStream, Map<String, InputStream> edpInputStreamMap, int format) throws Exception, JSONException {
-		Structure2 sed2 = new Structure2();
-		sed2.setEDPInputStreamMap(edpInputStreamMap);
-		sed2.setCloseInputStreams(true);
-		sed2.readED(pvsInputStream);		
+	public static JSONObject getJSONFromSed2(Structure2 sed2, int format) throws Exception, JSONException {
 		if(format==WT_SED2_FLAT) return outputRecurseSed2(sed2.toTreeStructure(), new JSONObject(),null, false);
 		if(format==WT_SED2_NESTED) return outputRecurseSed2(sed2.toTreeStructure(), new JSONObject(),null, true);
 		//if(format==PVS2JSON) return xxx; 
@@ -171,10 +229,6 @@ public class CreoViewRWHelper {
 	 */	private static JSONObject getPVS2JSONFromDefMutTree(DefaultMutableTreeNode node) {
 		// TODO Auto-generated method stub
 		return null;
-	}
-
-	public static JSONObject getJSONFromPVS(InputStream pvsInputStream) throws Exception, JSONException {
-		return getJSONFromPVS(pvsInputStream,null, DEFAULT);
 	}
 
 	/**
@@ -260,7 +314,7 @@ public class CreoViewRWHelper {
 		
 		JSONObject propEl = addProperties(thisNode, comp.properties, "");
 		JSONObject pvSysP = new JSONObject();
-		pvSysP.putOpt("Bounding Box",comp.bbox);
+		pvSysP.putOpt(BOUNDING_BOX,comp.bbox);
 		if (compInst != null) {
 //			pvSysP.put("Instance Translation", compInst.translation);//TODO: comment this and next line
 //			pvSysP.put("Instance Orientation", compInst.orientation);
@@ -308,12 +362,38 @@ public class CreoViewRWHelper {
 		}
 		//TODO: we may want to calculate the relative combined bbox as well!?!
 		float[] myAbsBBox = pvSysP.has(ABSOLUTE_BOUNDING_BOX) ? (float[]) pvSysP.get(ABSOLUTE_BOUNDING_BOX) : new float[6];
-		pvSysP.put("Model Extends (m)", new Point3f(myAbsBBox[0],myAbsBBox[1],myAbsBBox[2]).distance(new Point3f(myAbsBBox[3],myAbsBBox[4],myAbsBBox[5])) );
+//		pvSysP.put("Model Extents (m)", new Point3f(myAbsBBox[0],myAbsBBox[1],myAbsBBox[2]).distance(new Point3f(myAbsBBox[3],myAbsBBox[4],myAbsBBox[5])) );
+		//‘model extents’ is the longest of the 3 bbox axes. It is not the diagonal. (stupid imo)
+		pvSysP.put("Model Extents (mm)", 1000*Math.max(Math.abs(myAbsBBox[0]-myAbsBBox[3]), Math.max(Math.abs(myAbsBBox[1]-myAbsBBox[4]), Math.abs(myAbsBBox[2]-myAbsBBox[5]))));
 		
+		pvSysP.put("Model Bounds",  formatAsString(pvSysP.opt(ABSOLUTE_BOUNDING_BOX)));
+		pvSysP.remove(ABSOLUTE_BOUNDING_BOX);
+		pvSysP.put("Component Bounds",  formatAsString(pvSysP.opt(BOUNDING_BOX)));
+		pvSysP.remove(BOUNDING_BOX);
+		// have to calculate Component Bounds from trafo (or do that before already....)
+		//pvSysP.put("Component Bounds", Math.max(Math.abs(myAbsBBox[0]-myAbsBBox[3]), Math.max(Math.abs(myAbsBBox[1]-myAbsBBox[4]), Math.abs(myAbsBBox[2]-myAbsBBox[5]))));
+		pvSysP.put("Model Location", pvSysP.optString(INSTANCE_PREFIX+ABSOLUTE_PREFIX+"location"));
+		pvSysP.remove(INSTANCE_PREFIX+ABSOLUTE_PREFIX+"location");
+		pvSysP.put("Instance Location", pvSysP.optString(INSTANCE_PREFIX+"location"));
+		pvSysP.remove(INSTANCE_PREFIX+"location");
+		//pvSysP.put("Model Orientation", formatAsString((Float[])pvSysP.get(ABSOLUTE_BOUNDING_BOX)));
+		//pvSysP.put("Instance Orientation", formatAsString((Float[])pvSysP.get(ABSOLUTE_BOUNDING_BOX)));
+		pvSysP.put("Model Transformation", formatAsString(pvSysP.opt(INSTANCE_PREFIX+ABSOLUTE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D)));
+		pvSysP.remove(INSTANCE_PREFIX+ABSOLUTE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D);
+		pvSysP.put("Instance Transformation", formatAsString(pvSysP.opt(INSTANCE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D)));
+		pvSysP.remove(INSTANCE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D);
+
 		pvSysP.remove(INSTANCE_PREFIX+ABSOLUTE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D_MAT);
 		pvSysP.remove(INSTANCE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D_MAT);
 
 		return allChildCount;
+	}
+
+	private static String formatAsString(Object array) {
+		if(array == null) return null;
+		if(array instanceof JSONArray) return ((JSONArray)array).join(" ");		
+		if(array instanceof List || array.getClass().isArray()) return new JSONArray(array).join(" ");
+		return null;
 	}
 
 	public static JSONObject addProperties(JSONObject thisNode, Hashtable compAttrs, String defaultPropgroupName) {

@@ -46,47 +46,13 @@ public class CreoViewRWResource extends Resource {
 		_logger.trace("Entering Service: GetJSONFromCreoViewFile");
 		
 		JSONObject json = new JSONObject();
-		InputStream stream = null;
 		FileRepositoryThing fileRepositoryThing = (FileRepositoryThing)ThingUtilities.findThing(fileRepository);
-
-		//FileInputStream pvFis = fileRepositoryThing.openFileForRead(creoViewFile);
 		String rootPath = fileRepositoryThing.getRootPath();
-		File pvFile = new File(rootPath, creoViewFile);
-		
-		
+		File pvFile = new File(rootPath, creoViewFile);				
 		if(!pvFile.exists()) pvFile = new File(rootPath+creoViewFile); //in case of one file path separator too much
 		if(!pvFile.exists() || !pvFile.canRead()) throw new Exception("CreoView file: "+creoViewFile+" doesn't exist (or is not readable) in Repository: "+fileRepository);
-		Map<String, InputStream> edpInputStreamMap = null;
-		if(pvFile.getName().endsWith(".pvs")) {
-			stream = new BufferedInputStream(new FileInputStream(pvFile), 8192);
-		}else {
-			try {
-				ZipFile pvzFile = new ZipFile(pvFile);
-				Enumeration<? extends ZipEntry> pvEntries = pvzFile.entries();
-				while(pvEntries.hasMoreElements()) {
-					ZipEntry pvEntry = pvEntries.nextElement();
-					if(pvEntry.getName().endsWith(".ol")) continue;
-					else if(pvEntry.getName().endsWith(".pvs")) stream = new BufferedInputStream(pvzFile.getInputStream(pvEntry), 8192);
-					else {
-						if(edpInputStreamMap==null) edpInputStreamMap = new HashMap<String, InputStream>();
-						edpInputStreamMap.put(pvEntry.getName(), new BufferedInputStream(pvzFile.getInputStream(pvEntry), 8192));
-					}
-				}
-			}catch(Exception ex) {
-				throw new Exception("The creoView file you specified is neither a .pvs file nor a pvz (ie. zip-based file)", ex);
-			}
-		}
-		int format = jsonFormat==null ? CreoViewRWHelper.DEFAULT : 
-			 		jsonFormat.equalsIgnoreCase("WT_SED2_FLAT") ? CreoViewRWHelper.WT_SED2_FLAT : 
-			 		jsonFormat.equalsIgnoreCase("WT_SED2_NESTED") ? CreoViewRWHelper.WT_SED2_NESTED : 
-					jsonFormat.equalsIgnoreCase("WT_STRUCTURE2") ? CreoViewRWHelper.WT_STRUCTURE2 :
-					//jsonFormat.equalsIgnoreCase("PVS2JSON") ? CreoViewRWHelper.PVS2JSON : 
-					CreoViewRWHelper.DEFAULT;
-
-		json = CreoViewRWHelper.getJSONFromPVS(stream, edpInputStreamMap, format);
-		// reduce the json output to the specified list of properties now
-		if(returnedProperties !=null) CreoViewRWHelper.reduceJSON2Props(json, returnedProperties.split(","));
-		if (stream != null) stream.close();
+		
+		json = CreoViewRWHelper.getJSONFromPVFile(pvFile.getAbsolutePath(), jsonFormat, returnedProperties);
 		_logger.trace("Exiting Service: GetJSONFromCreoViewFile");
 		return json;
 	}

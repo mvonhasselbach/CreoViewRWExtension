@@ -233,35 +233,7 @@ public class CreoViewTrafoHelper {
 		};
 	}
 	
-//	public static float[] aggregateBBox(float[] addedBBox, Matrix4d addedRelTrafo, Matrix4d addedAbsTrafo, float[] aggregatedBBox ) {
-//		Point3f addedRelPointMin = new Point3f(addedBBox[0], addedBBox[1], addedBBox[2]);
-//		Point3f addedRelPointMax = new Point3f(addedBBox[3], addedBBox[4], addedBBox[5]);
-//		addedRelTrafo.transform(addedRelPointMin);
-//		addedRelTrafo.transform(addedRelPointMax);
-//		float[] relBBox = buildBBox(addedRelPointMin, addedRelPointMax);
-//
-//		Point3f addedAbsPointMin = new Point3f(addedBBox[0], addedBBox[1], addedBBox[2]);
-//		Point3f addedAbsPointMax = new Point3f(addedBBox[3], addedBBox[4], addedBBox[5]);		
-//		addedAbsTrafo.transform(addedAbsPointMin);
-//		addedAbsTrafo.transform(addedAbsPointMax);		
-//		float[] absBBox = buildBBox(addedAbsPointMin, addedAbsPointMax);
-//		
-//		aggregatedBBox[0] = addedPointMin.x < aggregatedBBox[0] ? addedPointMin.x :
-//			addedPointMax.x < aggregatedBBox[0] ? addedPointMax.x : aggregatedBBox[0];
-//		aggregatedBBox[1] = addedPointMin.y < aggregatedBBox[1] ? addedPointMin.y :
-//			addedPointMax.y < aggregatedBBox[1] ? addedPointMax.y : aggregatedBBox[1];
-//		aggregatedBBox[2] = addedPointMin.z < aggregatedBBox[2] ? addedPointMin.z :
-//			addedPointMax.z < aggregatedBBox[2] ? addedPointMax.z : aggregatedBBox[2];
-//
-//		aggregatedBBox[3] = addedPointMin.x > aggregatedBBox[3] ? addedPointMin.x :
-//			addedPointMax.x > aggregatedBBox[3] ? addedPointMax.x : aggregatedBBox[3];
-//		aggregatedBBox[4] = addedPointMin.y > aggregatedBBox[4] ? addedPointMin.y :
-//			addedPointMax.y > aggregatedBBox[4] ? addedPointMax.y : aggregatedBBox[4];
-//		aggregatedBBox[5] = addedPointMin.z > aggregatedBBox[5] ? addedPointMin.z :
-//			addedPointMax.z > aggregatedBBox[5] ? addedPointMax.z : aggregatedBBox[5];
-//
-//		return absBBox;
-//	}
+
 	private static float[] buildBBox(Point3f addedPointMin, Point3f addedPointMax) {
 		float[] absBBox = new float[6];
 		absBBox[0] = addedPointMin.x < addedPointMax.x ? addedPointMin.x : addedPointMax.x;

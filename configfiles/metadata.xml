@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <Entities>
     <ExtensionPackages>
-        <ExtensionPackage dependsOn="" description="Resource to read the structure and attributes from a CreoView file" minimumThingWorxVersion="8.1.0" name="CreoViewRWHelper" packageVersion="1.0.2" vendor="PTC">
+        <ExtensionPackage dependsOn="" description="Resource to read the structure and attributes from a CreoView file" minimumThingWorxVersion="8.1.0" name="CreoViewRWHelper" packageVersion="1.1.0" vendor="PTC">
             <JarResources>
                 <FileResource description="" file="CreoViewRWExtension.jar" type="JAR"/>
                 <FileResource description="" file="vecmath.jar" type="JAR"/>

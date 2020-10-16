@@ -4,8 +4,16 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.net.URI;
+import java.nio.channels.Channels;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -24,6 +32,7 @@ import java.util.zip.ZipFile;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.vecmath.Matrix4d;
 import javax.vecmath.Point3f;
+import javax.xml.transform.stream.StreamSource;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -54,6 +63,13 @@ public class CreoViewRWHelper {
 		System.out.println("logger class: "+logger.getClass());
 		try {
 			if(args.length<1) throw new Exception("You need at least one arg (the CreoView file)!");
+			if(args[0].equals("import")) {
+				System.out.println("Reading File: "+args[1]);
+				byte[] encoded = Files.readAllBytes(Paths.get(args[1]));
+				JSONObject json = new JSONObject(new String(encoded, StandardCharsets.UTF_8));
+				writePVSFromJSON(json, "WT_SED2_NESTED", new File(args[1]+".pvs"));
+				return;
+			}
 			JSONObject json = getJSONFromPVFile(
 					args[0], 
 					args.length>1 ? args[1] : null, 
@@ -138,8 +154,13 @@ public class CreoViewRWHelper {
 		logger.trace("comp: "+comp.name+" is proxy?: "+comp.proxy );
 		String myPath = parentPath;
 		if(comp.isProxy()) {
-			String proxyFN = comp.getSourceFileName();
-			if(proxyFN==null) proxyFN=comp.filename;
+			if(comp.properties==null) comp.properties = new Hashtable<String,String>();
+			comp.properties.put("isProxy","true");
+//			if(comp.shape!=null)comp.properties.put("shape",comp.shape);
+//			if(comp.filename!=null)comp.properties.put("filename",comp.filename);
+//			if(comp.getSourceFileName()!=null)comp.properties.put("sourceFilename",comp.getSourceFileName());
+//			if(comp.map_filename!=null)comp.properties.put("map_filename",comp.map_filename);
+			String proxyFN = comp.filename;
 			if(proxyFN!=null) { 
 				logger.trace("Found proxy comp: "+comp.name+" with sourcefilename: "+proxyFN);
 				logger.trace(""+comp);
@@ -155,9 +176,19 @@ public class CreoViewRWHelper {
 					sed2.readED(stream);
 					logger.trace("now merging "+comp+" with "+sed2.getRootComp());
 					Structure2.mergeStructure(comp, sed2.getRootComp(), true, false);
-				}else logger.warn("Proxy PVS File: "+proxyFN+" does not exist in pvzFile: "+pvzFile.getName()+"! Skipping proxy merge..." );
-			}else logger.warn("Comp is proxy but has no File: "+comp+"! Skipping proxy merge..." );
-		}
+					comp.properties.put("mergedProxy", "true");
+				}else {
+					logger.warn("Proxy PVS File: "+proxyFN+" does not exist in pvzFile: "+pvzFile.getName()+"! Skipping proxy merge..." );
+					comp.properties.put("mergedProxy", "false");
+					comp.properties.put("proxyURI", proxyFN);
+					comp.properties.put("mergedProxyMsg", "Proxy PVS File: "+proxyFN+" does not exist in pvzFile: "+pvzFile.getName());
+				}
+			}else {
+				logger.warn("Comp is proxy but has no File: "+comp+"! Skipping proxy merge..." );
+				comp.properties.put("mergedProxy", "flase");
+				comp.properties.put("mergedProxyMsg", "Comp is proxy but has no File: "+comp);
+			}
+		}//else comp.properties.put("isProxy", "false");
 		for (Iterator<CompInst> it = comp.children(); it.hasNext();) {
 			CompInst compInst = it.next();
 			resolveAndMergeProxyComps(compInst.child, myPath, pvzFile, edpInputStreamMap);
@@ -459,6 +490,64 @@ public class CreoViewRWHelper {
 		}
 		return isNested ? thisNodeJ : rootJson;
 	}
-		
 
+	public static void writePVSFromJSON(JSONObject json, String jsonFormat, File pvFile) throws Exception {
+		if(jsonFormat!=null && jsonFormat.equalsIgnoreCase("WT_SED2_NESTED")) json = nest2WTSed2(json);
+		//TODO: eventually preprocess other json formats	
+//		int format = jsonFormat==null ? CreoViewRWHelper.DEFAULT : 
+//	 		jsonFormat.equalsIgnoreCase("WT_SED2_FLAT") ? CreoViewRWHelper.WT_SED2_FLAT : 
+//	 		jsonFormat.equalsIgnoreCase("WT_SED2_NESTED") ? CreoViewRWHelper.WT_SED2_NESTED : 
+//			jsonFormat.equalsIgnoreCase("WT_STRUCTURE2") ? CreoViewRWHelper.WT_STRUCTURE2 :
+//			jsonFormat.equalsIgnoreCase("PVS2JSON") ? CreoViewRWHelper.PVS2JSON : CreoViewRWHelper.DEFAULT;
+
+		DefaultMutableTreeNode rootNode = getStructureTreeFromJson(json);
+		
+		Structure2.writeEDStructure(rootNode, pvFile);
+	}
+
+	private static DefaultMutableTreeNode getStructureTreeFromJson(JSONObject json) {
+		Hashtable<String, Object> props = new Hashtable<>();
+		DefaultMutableTreeNode myNode = new DefaultMutableTreeNode(props);
+		for(String key : JSONObject.getNames(json)) {
+			switch (key) {
+			case "wrtskp_property_group_lookup":
+				JSONObject jobj = json.getJSONObject(key);
+				Hashtable<String, String> pht = new Hashtable<>();
+				for(String pkey : JSONObject.getNames(jobj)) pht.put(pkey, jobj.getString(pkey));
+				props.put(key, pht);
+				break;
+			case "wrtskp_viewables": //TODO: write out correctly: add in ht by type as key and value is single or list of filenames
+				break;
+			case "wrtskp_views": //TODO: write out correctly: ht key=views, value= StrArr of Strings 16 numbers + name (17.). 16 Numbers from Mat4d that is generated from  Quat4f fron CView float[]
+				break;
+			case "wrtskp_appearance_overide": //TODO: write out correctly: ht key=color, value=blank-sep Str of 4 nums, RGB + Opacity
+				break;
+			case "child_count":
+				break;
+			case "id_path":
+				break;
+			case "components":				
+				break;
+			default:
+				props.put(key, json.get(key));
+				break;
+			}
+		}
+		JSONArray childAr = json.optJSONArray("components");
+		if(childAr!=null)for(Object childObj : childAr) {
+			myNode.add( getStructureTreeFromJson((JSONObject)childObj) );
+		}
+		return myNode;
+	}
+
+	private static JSONObject nest2WTSed2(JSONObject json) {
+		
+		for(String key : JSONObject.getNames(json)) {
+			
+		}
+		return json;
+	}
+		
+	
+	
 }

@@ -3,6 +3,7 @@ package com.ptc.octo.creoview;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -57,7 +58,7 @@ public class CreoViewRWResource extends Resource {
 		return json;
 	}
 
-	@ThingworxServiceDefinition(name = "GetJSONFromCreoViewFileURL", description = "Get the json representation of the pvs information from a URL that points to the creo view file. I'll use the ContentLoader here and start with 'simple' auth schemas.", category = "", isAllowOverride = false, aspects = {
+	@ThingworxServiceDefinition(name = "GetJSONFromCreoViewFileURL", description = "Get the json representation of the pvs information from a URL that points to the creo view file. I'll use the ContentLoader here and start with 'simple' auth schemas.", category = "CreoView", isAllowOverride = false, aspects = {
 			"isAsync:false" })
 	@ThingworxServiceResult(name = "result", description = "", baseType = "JSON", aspects = {})
 	public JSONObject GetJSONFromCreoViewFileURL(
@@ -68,7 +69,7 @@ public class CreoViewRWResource extends Resource {
 		return new JSONObject("{\"message\",\"This service is not implemented yet. Please use a combination of ContentLoader services and GetJSONFromCreoViewFile\"}") ;
 	}
 
-	@ThingworxServiceDefinition(name = "ReduceJSON2Props", description = "Reduce the content of the JSON to the list of properties specified", category = "", isAllowOverride = false, aspects = {
+	@ThingworxServiceDefinition(name = "ReduceJSON2Props", description = "Reduce the content of the JSON to the list of properties specified", category = "CreoView", isAllowOverride = false, aspects = {
 			"isAsync:false" })
 	@ThingworxServiceResult(name = "result", description = "", baseType = "JSON", aspects = {})
 	public JSONObject ReduceJSON2Props(
@@ -80,6 +81,35 @@ public class CreoViewRWResource extends Resource {
 		CreoViewRWHelper.reduceJSON2Props(pvJSON, returnedProperties.split(","));
 		_logger.trace("Exiting Service: ReduceJSON2Props");
 		return pvJSON;
+	}
+
+	@ThingworxServiceDefinition(name = "WritePVS", description = "", category = "CreoView", isAllowOverride = false, aspects = {
+			"isAsync:false" })
+	@ThingworxServiceResult(name = "Result", description = "", baseType = "NOTHING", aspects = {})
+	public void WritePVS(
+			@ThingworxServiceParameter(name = "json", description = "json in WT_SED2_NESTED format", baseType = "JSON", aspects = {
+					"isRequired:true" }) JSONObject json,
+			@ThingworxServiceParameter(name = "JSONFormat", description = "JSON format of input, one of [WT_SED2_NESTED|WT_SED2_FLAT], \ndefaults to WT_SED2_NESTED where WT_SED2_NESTED is the format that is a 1:1 of the Windchill Structure2.class internal structure", baseType = "STRING") String jsonFormat,
+			@ThingworxServiceParameter(name = "pvsFile", description = "pvs filepath and name, relative to the FileRepository root, e.g. /pvzs/MyAsm.pvs .\nIntermediate folders will be created if needed.", baseType = "STRING", aspects = {
+					"isRequired:true" }) String pvsFile,
+			@ThingworxServiceParameter(name = "fileRepository", description = "FileRepository where the pvs file will be generated in", baseType = "THINGNAME", aspects = {
+					"isRequired:true", "defaultValue:SystemRepository",
+					"thingTemplate:FileRepository" }) String fileRepository) throws Exception {
+		_logger.trace("Entering Service: WritePVS");
+		_logger.trace("Exiting Service: WritePVS");
+		//JSONObject json = new JSONObject();
+		FileRepositoryThing fileRepositoryThing = (FileRepositoryThing)ThingUtilities.findThing(fileRepository);
+		String rootPath = fileRepositoryThing.getRootPath();
+		File pvFile = new File(rootPath, pvsFile);
+		//TODO: have to check that this is not a killer! Right now it's the responsibility of the user to not accidentally overwrite existing files
+		if(pvFile.exists()) pvFile.delete();
+		pvFile.getParentFile().mkdirs();
+		try {
+			pvFile.createNewFile();
+		} catch (IOException e) {// shouldn't happen 
+			e.printStackTrace();
+		}
+		CreoViewRWHelper.writePVSFromJSON(json, jsonFormat, pvFile);
 	}
 
 }

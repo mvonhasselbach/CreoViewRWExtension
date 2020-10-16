@@ -4330,6 +4330,7 @@ public class Structure2 // extends Structure
 		addNumberArray(h, WRITE_SKIP_PREFIX + BBOX, childComp.bbox, null, " M");
 		addNumberArray(h, WRITE_SKIP_PREFIX + TRANSLATION, compInst.translation, null, null);
 		addNumberArray(h, WRITE_SKIP_PREFIX + ORIENTATION, compInst.orientation, null, null);
+		
 
 		if (childComp.properties != null)
 			h.putAll(childComp.properties);
@@ -4420,7 +4421,7 @@ public class Structure2 // extends Structure
 			convertPropertiesFromURL(h); // this will populate the file map as well as changing properties to filename
 
 		String name = (String) h.get(DISPLAY_INSTANCE_NAME);
-		String shape = (String) h.get(SHAPESOURCE);
+		String shape = (String) h.get(WRITE_SKIP_PREFIX+SHAPESOURCE);
 		String branchLink = (String) h.get(COMPONENT_BRANCH_LINK);
 		// find existing comp of same name and return index of that
 		if (matchCompsOnConversion && name != null) {
@@ -4446,7 +4447,7 @@ public class Structure2 // extends Structure
 				convertBranchLink(comp);
 		} else {
 			comp.shape = shape;
-			comp.bbox = getBboxFromBboxString((String) h.get(BBOX));
+			comp.bbox = getBboxFromBboxString((String) h.get(WRITE_SKIP_PREFIX+BBOX));
 
 			addViewableByViewerName(comp, DOCUMENT, h.get(DOCUMENT), null, 0);
 			addViewableByViewerName(comp, DRAWING, h.get(DRAWING), null, 0);
@@ -4559,8 +4560,23 @@ public class Structure2 // extends Structure
 				} else {
 					addPropertyValue(childComp, ED_LOCATION, locationValue, null);
 				}
+			}else {
+				String translStr = (String)ch.get(WRITE_SKIP_PREFIX+TRANSLATION);
+				if(translStr!=null) {
+					double[] trans = new double[3];
+					String[] numStr = translStr.split(" ");
+					for(int ii=0; ii<3; ii++) trans[ii]= Double.parseDouble(numStr[ii]);
+					compInst.translation = trans;
+				}
+				String oriStr = (String)ch.get(WRITE_SKIP_PREFIX+ORIENTATION);
+				if(oriStr!=null) {
+					double[] ori = new double[9];
+					String[] numStr = oriStr.split(" ");
+					for(int ii=0; ii<9; ii++) ori[ii]= Double.parseDouble(numStr[ii]);
+					compInst.orientation = ori;
+				}
 			}
-			compInst.id = (String) ch.get(PVCID);
+			compInst.id = (String) ch.get(WRITE_SKIP_PREFIX + PVCID);
 		}
 
 		return compList.size() - 1;

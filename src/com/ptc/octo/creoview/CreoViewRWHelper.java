@@ -4,19 +4,13 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.net.URI;
-import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -25,14 +19,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.vecmath.Matrix4d;
-import javax.vecmath.Point3f;
-import javax.xml.transform.stream.StreamSource;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -68,6 +59,7 @@ public class CreoViewRWHelper {
 				byte[] encoded = Files.readAllBytes(Paths.get(args[1]));
 				JSONObject json = new JSONObject(new String(encoded, StandardCharsets.UTF_8));
 				writePVSFromJSON(json, "WT_SED2_NESTED", new File(args[1]+".pvs"));
+				System.out.println("Wrote pvz to file: "+args[1]+".pvz");
 				return;
 			}
 			JSONObject json = getJSONFromPVFile(

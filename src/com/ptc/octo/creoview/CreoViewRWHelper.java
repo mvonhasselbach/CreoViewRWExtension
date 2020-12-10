@@ -30,6 +30,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreeNode;
 import javax.vecmath.Matrix4d;
 import javax.vecmath.Point3f;
 import javax.xml.transform.stream.StreamSource;
@@ -478,10 +479,10 @@ public class CreoViewRWHelper {
 		thisNodeJ.put("child_count", thisNode.getChildCount());
 		if(!isNested) rootJson.put(levelPath, thisNodeJ);
 		
-		Enumeration<DefaultMutableTreeNode> nodesE = thisNode.children();
+		Enumeration<TreeNode> nodesE = thisNode.children();
 		JSONArray childs = new JSONArray();
 		while(nodesE.hasMoreElements()) {
-			DefaultMutableTreeNode childNode = nodesE.nextElement();
+			DefaultMutableTreeNode childNode = (DefaultMutableTreeNode) nodesE.nextElement();
 			if(isNested) {
 				JSONObject childJson = outputRecurseSed2(childNode, thisNodeJ, idPath, true);
 				thisNodeJ.append("components", childJson);

@@ -1618,6 +1618,28 @@ public class Structure2 // extends Structure
 			case ED_COMPONENT_INSTANCE_TAG:
 				readComponentInstance(comp);
 				break;
+			case 68: // name of XML tag: illustration3d_source
+				skip(3);
+				// usual value: IllustrationStandard.xml
+				reads();
+				skip(3);
+				// usual value: IllustrationLineStyles.xml
+				reads();
+				skip(3);
+				// usual value: validation.xml
+				reads();
+				skip(3);
+				// usual value: pvssbom.xml
+				reads();
+				skip(3);
+				// usual value: en.xlf
+				reads();
+				skip(6);
+				// contains the name of the PVI file
+				reads();
+				// contains the name of the figure
+				reads();
+				break;
 			case ED_DRAWING_TAG:
 			case ED_DOCUMENT_TAG:
 			case ED_IMAGE_TAG:

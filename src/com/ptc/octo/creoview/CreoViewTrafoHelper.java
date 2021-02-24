@@ -234,7 +234,7 @@ public class CreoViewTrafoHelper {
 	}
 	
 
-	private static float[] buildBBox(Point3f addedPointMin, Point3f addedPointMax) {
+	public static float[] buildBBox(Point3f addedPointMin, Point3f addedPointMax) {
 		float[] absBBox = new float[6];
 		absBBox[0] = addedPointMin.x < addedPointMax.x ? addedPointMin.x : addedPointMax.x;
 		absBBox[1] = addedPointMin.y < addedPointMax.y ? addedPointMin.y : addedPointMax.y;

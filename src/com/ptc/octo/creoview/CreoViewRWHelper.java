@@ -204,7 +204,7 @@ public class CreoViewRWHelper {
 		//if(format==PVS2JSON) return xxx; 
 		if(format==WT_STRUCTURE2) return getIETreeJSON(sed2.getRootComp());
 		JSONObject rootJson = new JSONObject();
-		outputRecurseDefault(sed2.getRootComp(), null, rootJson, null);
+		outputRecurseDefault(sed2.getRootComp(), null, rootJson, null, 0);
 		return rootJson;
 	}
 
@@ -329,10 +329,11 @@ public class CreoViewRWHelper {
 		return node;
 	}
 
-	private static int outputRecurseDefault(Structure2.Comp comp, Structure2.CompInst compInst, JSONObject rootJson, JSONObject parentJson) {
+	private static int outputRecurseDefault(Structure2.Comp comp, Structure2.CompInst compInst, JSONObject rootJson, JSONObject parentJson, int childIdx) {
 		JSONObject thisNode = new JSONObject();
 		String pPath = parentJson==null? "" : parentJson.getString("Part ID Path");
 		String pNamePath = parentJson==null? "" : parentJson.getString("Part Path");
+		if(compInst!=null) compInst.id = compInst.id!=null ? compInst.id : "@@PV-AUTO-ID@@"+ String.format("%03d", childIdx);
 		String idPath = compInst==null ? "" : pPath+"/"+compInst.id;
 		rootJson.put( (idPath.equals("")?"/":idPath), thisNode);
 		
@@ -365,10 +366,10 @@ public class CreoViewRWHelper {
 		
 		int allChildCount=0, directChildCount=0;
 		for (Object ccompInst : comp.childInsts) {
-			directChildCount++;
 			allChildCount++;
-			int grandChildCount = outputRecurseDefault(((Structure2.CompInst) ccompInst).child, (Structure2.CompInst) ccompInst, rootJson, pvSysP);
+			int grandChildCount = outputRecurseDefault(((Structure2.CompInst) ccompInst).child, (Structure2.CompInst) ccompInst, rootJson, pvSysP, directChildCount);
 			allChildCount = allChildCount+grandChildCount;
+			directChildCount++;
 		}
 		pvSysP.putOpt("Direct Child Count", directChildCount);
 		pvSysP.putOpt("Child Count", allChildCount);

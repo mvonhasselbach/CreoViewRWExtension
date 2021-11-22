@@ -3,9 +3,11 @@
 This Thingworx Extension allows to read CreoView .pvz and .pvs files from a TWX FileRepository and 
 return the product structure metadata that is included in the .pvs file in it. Metadata is:
 - attributes
-- transformation/position information
+- transformation/position information (relative and absolute, in Matrix- and Euler representation)
 - component paths
 - bounding boxes
+- views
+- locators if included
 
 
 It support different output formats. See sample data sets in [./data](./data) :
@@ -21,10 +23,12 @@ It support different output formats. See sample data sets in [./data](./data) :
 	- **Instance Transformation**: 4x4 Transformation Matrix of the location information relative to its direct parent assembly, 
 	  represented as a space separated string with 16 numbers
 	- **Model Transformation**: 4x4 Transformation Matrix representation of the global location
+	- **Views**: name and float[4] form of orientation
+	- **Locators**: label, id and data in 3x3 Matrix format.
 2. the **WT_SED2_NESTED** 'native' export format that is based on how data is represented in the Windchill WVS Structure2 class.
    This format will be the basis for writing .pvs files as well. There is a **WT_SED2_FLAT** format as well that represents all nodes
    of the structure as a flat list, indexed by the ComponentID Path of each node, similar to the **Default** format.
-   Both formats are more complete than the other formats. They can include Viewable, View, ViewState and Appearance information when they are included in the pvz.
+   Both formats are more complete than the other formats. They can include Viewable, Views, ViewState, Appearance and Locators information when they are included in the pvz.
 3. the **PVS2JSON** format from Steve Ghee which is slightly extended and also includes bounding box info. (Sorry - This is not yet implemented!)
 
 Furthermore the Extension supports filtering of the returned attributes/properties. This can be handy to remove sensitive information 

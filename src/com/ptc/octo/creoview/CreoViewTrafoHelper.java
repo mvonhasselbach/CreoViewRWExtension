@@ -78,7 +78,7 @@ public class CreoViewTrafoHelper {
 
 	private static Matrix4d getAbsMatrix4dOfElement(JSONObject el) throws NumberFormatException, JSONException {
 		el = el.optJSONObject("link_properties")!=null ? el.optJSONObject("link_properties") : el;
-		Matrix4d absMat4d = (Matrix4d) el.opt("pvs_abs_mat4d");
+		Matrix4d absMat4d = (Matrix4d) el.opt("pvs_abs_"+TRAFO_MATRIX4D_MAT);
 		if (absMat4d == null) {
 			absMat4d = new Matrix4d();
 			absMat4d.setIdentity();
@@ -113,11 +113,11 @@ public class CreoViewTrafoHelper {
 
 	private static Matrix4d getRelMatrix4dOfElement(JSONObject el) throws NumberFormatException, JSONException {
 		el = el.optJSONObject("link_properties")!=null ? el.optJSONObject("link_properties") : el;
-		Matrix4d relMat4d = (Matrix4d) el.opt("pvs_mat4d");
+		Matrix4d relMat4d = (Matrix4d) el.opt("pvs_"+TRAFO_MATRIX4D_MAT);
 		if (relMat4d == null) {
 			relMat4d = new Matrix4d();
 			relMat4d.setIdentity();
-			el.put("pvs_mat4d", relMat4d);
+			el.put("pvs_"+TRAFO_MATRIX4D_MAT, relMat4d);
 		}
 		return relMat4d;
 

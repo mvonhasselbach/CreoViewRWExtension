@@ -32,8 +32,12 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ptc.octo.creoview.Structure2.CompInst;
+import com.ptc.octo.creoview.Structure2.LocatorList;
 
 public class CreoViewRWHelper {
 
@@ -59,7 +63,8 @@ public class CreoViewRWHelper {
 				System.out.println("Reading File: "+args[1]);
 				byte[] encoded = Files.readAllBytes(Paths.get(args[1]));
 				JSONObject json = new JSONObject(new String(encoded, StandardCharsets.UTF_8));
-				writePVSFromJSON(json, "WT_SED2_NESTED", new File(args[1]+".pvs"));
+				String format = args.length>2 ? args[2] : "WT_SED2_FLAT";
+				writePVSFromJSON(json, format, new File(args[1]+".pvs"));
 				System.out.println("Wrote pvz to file: "+args[1]+".pvz");
 				return;
 			}
@@ -293,36 +298,57 @@ public class CreoViewRWHelper {
 		if (val != null)
 			propEl.put("pvs_filename", comp.filename);
 
-		propEl.put("pvs_shape", comp.shape);
+		propEl.put("pvs_shape", comp.shape.name);
 		propEl.put("pvs_name", comp.name);
 		propEl.put("pvs_type", comp.type);
 		
-		propEl.put("pvs_bbox", comp.bbox);
+		propEl.put("pvs_bbox", comp.shape.bbox);
 		propEl.put("pvs_writeIdx", comp.writeIdx);
 		propEl.put("pvs_wvs_info", comp.wvs_info);
 		propEl.put("pvs_source_part_name", comp.getSourcePartName());
 		propEl.put("pvs_source_file_name", comp.getSourceFileName());
 		propEl.put("pvs_source_form_name", comp.getSourceFormName());
 
+		if(comp.locatorList!=null) {
+			for(Structure2.Locator loc : comp.locatorList.locators) {
+				JSONObject locator = new JSONObject();
+				locator.putOpt("id", loc.id);
+				locator.putOpt("label", loc.label);
+				locator.putOpt("type", loc.type);
+				locator.putOpt("data", loc.data);
+				propEl.append("pvs_locators", locator);
+			}
+		}
+		if(comp.viewList!=null) {
+			for(Cloneable vw : comp.viewList) {
+				JSONObject view = new JSONObject();
+				view.putOpt("name", ((Structure2.CView)vw).name);
+				view.putOpt("orientation", ( ((Structure2.CView)vw).orientation!=null ? ((Structure2.CView)vw).orientation : new float[]{0,0,0,0} ));
+				propEl.append("pvs_views", view);
+			}		
+		}
+		
+		String path = "/";
 		if (compInst != null) {
 			Hashtable compInstAttrs = compInst.properties;
 			JSONObject lpropEl = addProperties(el, comp.properties, "link_properties");
 			Matrix4d mat = Structure2.getMatrix4dFromTranslationAndOrientation(compInst.translation,
 					compInst.orientation);
 			CreoViewTrafoHelper.addTrafoInfos(lpropEl, mat, "pvs_");
+			if(compInst.id==null) compInst.id = "@@PV-AUTO-ID@@"+ String.format("%03d", pnode.getChildCount()+1);
 			lpropEl.put("pvs_inst_id", compInst.id);
+			path = path+compInst.id;
 			lpropEl.put("pvs_inst_name", compInst.name);
 			lpropEl.put("pvs_inst_type", compInst.type);			
-		}
+		};
 		DefaultMutableTreeNode node = new DefaultMutableTreeNode(el);
-		if (pnode != null) pnode.add(node);
-		Object[] nodeObjs = node.getUserObjectPath();
-		String path = "";
-		for (Object obj : nodeObjs) {
-			String pId = ((JSONObject)obj).optString("pvs_inst_id");
-			if(!pId.equals("")) path+="/"+pId;
+		if (pnode != null) pnode.add(node);		
+		if(pnode!=null) {
+			String ppath = ((JSONObject)pnode.getUserObject()).optString("pvs_path");
+			path = ppath.length()==1 ? path : ppath	+ path;
 		}
 		el.put("pvs_path", path);
+		
 		for (Object ccompInst : comp.childInsts) {
 			structure2ToIeTree(((Structure2.CompInst) ccompInst).child, (Structure2.CompInst) ccompInst, node);
 		}
@@ -339,7 +365,7 @@ public class CreoViewRWHelper {
 		
 		JSONObject propEl = addProperties(thisNode, comp.properties, "");
 		JSONObject pvSysP = new JSONObject();
-		pvSysP.putOpt(BOUNDING_BOX,comp.bbox);
+		pvSysP.putOpt(BOUNDING_BOX,comp.shape.bbox);
 		if (compInst != null) {
 //			pvSysP.put("Instance Translation", compInst.translation);//TODO: comment this and next line
 //			pvSysP.put("Instance Orientation", compInst.orientation);
@@ -356,13 +382,33 @@ public class CreoViewRWHelper {
 		pvSysP.putOpt("Component Name", comp.name);
 		pvSysP.putOpt("Display Name", comp.name);
 		//pvSysP.putOpt("Model Extents (mm)", comp.modelUnitLength);
-		pvSysP.put("OL File Name", (comp.shape!=null && comp.shape.endsWith(".ol") ? comp.shape : ""));
+		pvSysP.put("OL File Name", (comp.shape.name!=null && comp.shape.name.endsWith(".ol") ? comp.shape.name : ""));
 		pvSysP.putOpt("Part Depth", idPath.split("/").length-1);
 		pvSysP.putOpt("Part ID Path", idPath);
 		pvSysP.putOpt("Part Name", comp.name);
 		String partNamePath = compInst==null ? "/"+comp.name : pNamePath+"/"+comp.name;
 		pvSysP.putOpt("Part Path", partNamePath);
 		thisNode.putOpt("__PV_SystemProperties",pvSysP);
+		
+		//add locators and views
+		if(comp.locatorList!=null) {
+			for(Structure2.Locator loc : comp.locatorList.locators) {
+				JSONObject locator = new JSONObject();
+				locator.putOpt("id", loc.id);
+				locator.putOpt("label", loc.label);
+				locator.putOpt("type", loc.type);
+				locator.putOpt("data", loc.data);
+				pvSysP.append("locators", locator);
+			}
+		}
+		if(comp.viewList!=null) {
+			for(Cloneable vw : comp.viewList) {
+				JSONObject view = new JSONObject();
+				view.putOpt("name", ((Structure2.CView)vw).name);
+				view.putOpt("orientation", ( ((Structure2.CView)vw).orientation!=null ? ((Structure2.CView)vw).orientation : new float[]{0,0,0,0} ));
+				pvSysP.append("views", view);
+			}		
+		}
 		
 		int allChildCount=0, directChildCount=0;
 		for (Object ccompInst : comp.childInsts) {
@@ -376,9 +422,9 @@ public class CreoViewRWHelper {
 
 		if(parentJson!=null) {
 			float[] absBBox = parentJson.has(ABSOLUTE_BOUNDING_BOX) ? (float[]) parentJson.get(ABSOLUTE_BOUNDING_BOX) : new float[6];
-			if(comp.bbox!=null) { //pvs provided bboxes have precedence, my calculated ones are used when there is no pvs-provided one
-				absBBox = CreoViewTrafoHelper.aggregateBBox(comp.bbox, (Matrix4d) pvSysP.get(INSTANCE_PREFIX+ABSOLUTE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D_MAT), absBBox);
-				float[] myAbsBBox = CreoViewTrafoHelper.aggregateBBox(comp.bbox, (Matrix4d) pvSysP.get(INSTANCE_PREFIX+ABSOLUTE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D_MAT), null);
+			if(comp.shape.bbox!=null) { //pvs provided bboxes have precedence, my calculated ones are used when there is no pvs-provided one
+				absBBox = CreoViewTrafoHelper.aggregateBBox(comp.shape.bbox, (Matrix4d) pvSysP.get(INSTANCE_PREFIX+ABSOLUTE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D_MAT), absBBox);
+				float[] myAbsBBox = CreoViewTrafoHelper.aggregateBBox(comp.shape.bbox, (Matrix4d) pvSysP.get(INSTANCE_PREFIX+ABSOLUTE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D_MAT), null);
 				pvSysP.put(ABSOLUTE_BOUNDING_BOX, myAbsBBox);
 			}else if(pvSysP.has(ABSOLUTE_BOUNDING_BOX)) {
 				absBBox = CreoViewTrafoHelper.aggregateBBox((float[])pvSysP.get(ABSOLUTE_BOUNDING_BOX), null, absBBox);			
@@ -455,10 +501,15 @@ public class CreoViewRWHelper {
 	 * @param parentJ
 	 * @param pPath
 	 * @return
+	 * @throws JsonProcessingException 
 	 */
-	private static JSONObject outputRecurseSed2(DefaultMutableTreeNode thisNode, JSONObject rootJson, String pPath, boolean isNested) {
+	private static JSONObject outputRecurseSed2(DefaultMutableTreeNode thisNode, JSONObject rootJson, String pPath, boolean isNested) throws JsonProcessingException {
 		Hashtable nodeData = (Hashtable)thisNode.getUserObject();
-		JSONObject thisNodeJ = new JSONObject(nodeData);
+//		JSONObject thisNodeJ = new JSONObject(nodeData);
+		//use Jackson json serializer to handle incorrect serialization of Hashtable subnodes like views and locators 
+		//      where the node doesn't serialize to String
+		String serialized = new ObjectMapper().writeValueAsString(nodeData);
+		JSONObject thisNodeJ = new JSONObject(serialized);
 		String instId = (String) nodeData.get(Structure2.WRITE_SKIP_PREFIX + Structure2.PVCID);
 		String idPath=null, levelPath=null;
 		if(pPath==null) {
@@ -486,7 +537,7 @@ public class CreoViewRWHelper {
 	}
 
 	public static void writePVSFromJSON(JSONObject json, String jsonFormat, File pvFile) throws Exception {
-		if(jsonFormat!=null && jsonFormat.equalsIgnoreCase("WT_SED2_NESTED")) json = nest2WTSed2(json);
+		if(jsonFormat!=null && jsonFormat.equalsIgnoreCase("WT_SED2_FLAT")) json = nest2WTSed2(json);
 		//TODO: eventually preprocess other json formats	
 //		int format = jsonFormat==null ? CreoViewRWHelper.DEFAULT : 
 //	 		jsonFormat.equalsIgnoreCase("WT_SED2_FLAT") ? CreoViewRWHelper.WT_SED2_FLAT : 
@@ -496,35 +547,79 @@ public class CreoViewRWHelper {
 
 		DefaultMutableTreeNode rootNode = getStructureTreeFromJson(json);
 		
-		Structure2.writeEDStructure(rootNode, pvFile);
+		//Structure2.writeEDStructure(rootNode, pvFile);
+		//split it up to be able to handle additional info that is not included in Structure2 DefMutTreeNode reading
+		Structure2 sed2 = new Structure2();
+		sed2.fromTreeStructure(rootNode);
+		fillDeserializationGaps(rootNode, json, sed2);
+		sed2.writeED(pvFile, (File)null);
+		
 	}
 
-	private static DefaultMutableTreeNode getStructureTreeFromJson(JSONObject json) {
+	private static void fillDeserializationGaps(DefaultMutableTreeNode rootNode, JSONObject json, Structure2 sed2) {
+		//get locator infos: for now I assume that they are on the root node level only. 
+		//Structure2-Datamodel-wise this info could be on any level! If later we find out that this info exist on any level, we'll have to recurse the structure 
+		JSONObject locatorsJ = json.optJSONObject("wrtskp_locators");
+		if(locatorsJ!=null) {
+			try {
+				sed2.getRootComp().locatorList = (Structure2.LocatorList)new ObjectMapper().readValue(locatorsJ.toString(), Structure2.LocatorList.class);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		JSONArray viewsJ = json.optJSONArray("wrtskp_views");
+		if(viewsJ!=null) {
+			try {
+				ArrayList<Cloneable> views = new ArrayList<>();
+				for(int i=0; i< viewsJ.length(); i++) {
+					JSONObject viewJ = viewsJ.optJSONObject(i);
+					views.add(new ObjectMapper().readValue(viewJ.toString(), Structure2.CView.class));
+				}
+				sed2.getRootComp().viewList = views;
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		
+	}
+
+	private static DefaultMutableTreeNode getStructureTreeFromJson(JSONObject json) throws JsonParseException, JsonMappingException, JSONException, IOException {
 		Hashtable<String, Object> props = new Hashtable<>();
 		DefaultMutableTreeNode myNode = new DefaultMutableTreeNode(props);
 		for(String key : JSONObject.getNames(json)) {
-			switch (key) {
-			case "wrtskp_property_group_lookup":
-				JSONObject jobj = json.getJSONObject(key);
-				Hashtable<String, String> pht = new Hashtable<>();
-				for(String pkey : JSONObject.getNames(jobj)) pht.put(pkey, jobj.getString(pkey));
-				props.put(key, pht);
-				break;
-			case "wrtskp_viewables": //TODO: write out correctly: add in ht by type as key and value is single or list of filenames
-				break;
-			case "wrtskp_views": //TODO: write out correctly: ht key=views, value= StrArr of Strings 16 numbers + name (17.). 16 Numbers from Mat4d that is generated from  Quat4f fron CView float[]
-				break;
-			case "wrtskp_appearance_overide": //TODO: write out correctly: ht key=color, value=blank-sep Str of 4 nums, RGB + Opacity
-				break;
-			case "child_count":
-				break;
-			case "id_path":
-				break;
-			case "components":				
-				break;
-			default:
-				props.put(key, json.get(key));
-				break;
+			if(key.startsWith(Structure2.WRITE_SKIP_PREFIX)) {
+				switch (key) {
+				case "wrtskp_property_group_lookup":
+					JSONObject jobj = json.getJSONObject(key);
+					Hashtable<String, String> pht = new Hashtable<>();
+					for(String pkey : JSONObject.getNames(jobj)) pht.put(pkey, jobj.getString(pkey));
+					props.put(key, pht);
+					break;
+				case "wrtskp_viewables": //TODO: write out correctly: add in ht by type as key and value is single or list of filenames
+				case "wrtskp_views": //TODO: write out correctly: ht key=views, value= StrArr of Strings 16 numbers + name (17.). 16 Numbers from Mat4d that is generated from  Quat4f fron CView float[]
+				case "wrtskp_appearance_overide": //TODO: write out correctly: ht key=color, value=blank-sep Str of 4 nums, RGB + Opacity
+				case "wrtskp_locators":
+					break;
+				case Structure2.DISPLAY_INSTANCE_NAME:
+				case Structure2.DISPLAY_ICON_ID:
+					props.put(key, json.get(key));
+					break;
+				default:
+					props.put(key.substring(Structure2.WRITE_SKIP_PREFIX.length()), json.get(key));
+					break;
+				}				
+			}else {
+				switch (key) {
+				case "child_count":
+					break;
+				case "id_path":
+					break;
+				case "components":				
+					break;
+				default:
+					props.put(key, json.get(key));
+					break;
+				}
 			}
 		}
 		JSONArray childAr = json.optJSONArray("components");
@@ -535,11 +630,18 @@ public class CreoViewRWHelper {
 	}
 
 	private static JSONObject nest2WTSed2(JSONObject json) {
-		
+		//build components structure from paths
+		JSONObject resObj = null;
 		for(String key : JSONObject.getNames(json)) {
-			
+			JSONObject thisObj = json.getJSONObject(key);
+			if(key.equals("/")) resObj = json.getJSONObject(key);
+			else {
+				String pKey = key.substring(0, key.lastIndexOf("/"));
+				pKey = pKey.equals("") ? "/" : pKey;
+				json.getJSONObject(pKey).append("components", thisObj);
+			}
 		}
-		return json;
+		return resObj;
 	}
 		
 	

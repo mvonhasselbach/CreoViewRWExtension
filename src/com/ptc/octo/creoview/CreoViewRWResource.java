@@ -79,7 +79,7 @@ public class CreoViewRWResource extends Resource {
 			"isAsync:false" })
 	@ThingworxServiceResult(name = "Result", description = "", baseType = "NOTHING", aspects = {})
 	public void WritePVS(
-			@ThingworxServiceParameter(name = "json", description = "json in WT_SED2_NESTED format", baseType = "JSON", aspects = {
+			@ThingworxServiceParameter(name = "json", description = "json in WT_SED2_NESTED or WT_SED2_FLAT format", baseType = "JSON", aspects = {
 					"isRequired:true" }) JSONObject json,
 			@ThingworxServiceParameter(name = "JSONFormat", description = "JSON format of input, one of [WT_SED2_NESTED|WT_SED2_FLAT], \ndefaults to WT_SED2_NESTED where WT_SED2_NESTED is the format that is a 1:1 of the Windchill Structure2.class internal structure", baseType = "STRING") String jsonFormat,
 			@ThingworxServiceParameter(name = "pvsFile", description = "pvs filepath and name, relative to the FileRepository root, e.g. /pvzs/MyAsm.pvs .\nIntermediate folders will be created if needed.", baseType = "STRING", aspects = {

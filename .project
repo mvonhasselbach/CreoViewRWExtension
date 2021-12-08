@@ -26,4 +26,31 @@
 		<nature>com.thingworx.eclipse.extension.ui.ExtensionNature</nature>
 		<nature>org.eclipse.buildship.core.gradleprojectnature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>data/AsmWLocators.pvz</name>
+			<type>1</type>
+			<location>C:/Users/mvonhasselbach/Desktop/Onshape-WT/SmartPlatforms/AsmWLocators.pvz</location>
+		</link>
+		<link>
+			<name>data/AsmWithLocators_0000002370.asm, A.1.pvs</name>
+			<type>1</type>
+			<location>C:/Users/mvonhasselbach/Desktop/Onshape-WT/SmartPlatforms/AsmWithLocators_0000002370.asm, A.1.pvs</location>
+		</link>
+		<link>
+			<name>data/LongFrameWLocs.pvz</name>
+			<type>1</type>
+			<location>C:/Users/mvonhasselbach/Desktop/Onshape-WT/SmartPlatforms/LongFrameWLocs.pvz</location>
+		</link>
+		<link>
+			<name>data/T00000001, Positioning Truck, A.4 (Design).pvz</name>
+			<type>1</type>
+			<location>C:/Users/mvonhasselbach/Desktop/Onshape-WT/SmartPlatforms/T00000001, Positioning Truck, A.4 (Design).pvz</location>
+		</link>
+		<link>
+			<name>data/response.pvs</name>
+			<type>1</type>
+			<location>C:/Users/mvonhasselbach/Desktop/Onshape-WT/SmartPlatforms/response.pvs</location>
+		</link>
+	</linkedResources>
 </projectDescription>

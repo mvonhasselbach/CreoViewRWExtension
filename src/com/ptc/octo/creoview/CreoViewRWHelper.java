@@ -374,7 +374,7 @@ public class CreoViewRWHelper {
 		if(parentJson==null) {
 			levelPath="/"; //this is an inconsistency in the format of the Path! The root element should have "" instead of "/" ...
 			idPath="";
-		}else{ 
+		}else{
 			idPath=pPath+"/"+compInst.id;
 			levelPath=idPath;
 		}

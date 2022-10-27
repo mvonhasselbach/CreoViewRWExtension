@@ -28,14 +28,29 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>data/0000028990.pvz</name>
+			<type>1</type>
+			<location>C:/Users/mvonhasselbach/Downloads/0000028990.pvz</location>
+		</link>
+		<link>
 			<name>data/AsmWLocators.pvz</name>
 			<type>1</type>
-			<location>C:/Users/mvonhasselbach/Desktop/Onshape-WT/SmartPlatforms/AsmWLocators.pvz</location>
+			<location>D:/projects/Onshape/Onshape-WT/SmartPlatforms/AsmWLocators.pvz</location>
 		</link>
 		<link>
 			<name>data/AsmWithLocators_0000002370.asm, A.1.pvs</name>
 			<type>1</type>
-			<location>C:/Users/mvonhasselbach/Desktop/Onshape-WT/SmartPlatforms/AsmWithLocators_0000002370.asm, A.1.pvs</location>
+			<location>D:/projects/Onshape/Onshape-WT/SmartPlatforms/AsmWithLocators_0000002370.asm, A.1.pvs</location>
+		</link>
+		<link>
+			<name>data/Assemble intermediate housing sub assy, A.2 (Manufacturing), 0000000392.pvz</name>
+			<type>1</type>
+			<location>C:/Users/mvonhasselbach/Desktop/CampX PVZs/Assemble intermediate housing sub assy, A.2 (Manufacturing), 0000000392.pvz</location>
+		</link>
+		<link>
+			<name>data/Illustration_bike_test.pvz</name>
+			<type>1</type>
+			<location>C:/Users/mvonhasselbach/Desktop/CampX PVZs/Illustration_bike_test.pvz</location>
 		</link>
 		<link>
 			<name>data/LongFrameWLocs.pvz</name>

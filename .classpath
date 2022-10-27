@@ -8,5 +8,22 @@
 	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8/"/>
 	<classpathentry kind="con" path="org.eclipse.buildship.core.gradleclasspathcontainer"/>
+	<classpathentry kind="lib" path="twx-lib/jackson-core-2.8.1.jar"/>
+	<classpathentry kind="lib" path="twx-lib/custom-rhino-js-5.1.0.jar"/>
+	<classpathentry kind="lib" path="twx-lib/thingworx-ext-sdk-8.1.0-b52.jar">
+		<attributes>
+			<attribute name="javadoc_location" value="jar:platform:/resource/creoviewrwextension/twx-lib/thingworx-javadocs-8.1.0-b52.jar!/"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="twx-lib/thingworx-javadocs-8.1.0-b52.jar"/>
+	<classpathentry kind="lib" path="twx-lib/thingworx-communications-server-8.1.0-b52.jar"/>
+	<classpathentry kind="lib" path="twx-lib/logback-core-1.0.13.jar"/>
+	<classpathentry kind="lib" path="twx-lib/jackson-databind-2.8.1.jar"/>
+	<classpathentry kind="lib" path="twx-lib/jackson-dataformat-smile-2.8.1.jar"/>
+	<classpathentry kind="lib" path="twx-lib/thingworx-communications-client-8.1.0-b52.jar"/>
+	<classpathentry kind="lib" path="twx-lib/jackson-annotations-2.8.0.jar"/>
+	<classpathentry kind="lib" path="twx-lib/joda-time-2.9.jar"/>
+	<classpathentry kind="lib" path="twx-lib/slf4j-api-1.7.21.jar"/>
+	<classpathentry kind="lib" path="twx-lib/logback-classic-1.0.13.jar"/>
 	<classpathentry kind="output" path="bin/main"/>
 </classpath>

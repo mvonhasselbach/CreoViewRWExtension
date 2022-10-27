@@ -3,6 +3,7 @@ package com.ptc.octo.creoview;
 import java.io.File;
 import java.io.IOException;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 
@@ -55,7 +56,7 @@ public class CreoViewRWResource extends Resource {
 	@ThingworxServiceResult(name = "result", description = "", baseType = "JSON", aspects = {})
 	public JSONObject GetJSONFromCreoViewFileURL(
 			@ThingworxServiceParameter(name = "CreoViewFileURL", description = "", baseType = "HYPERLINK", aspects = {
-					"isRequired:true" }) String CreoViewFileURL) {
+					"isRequired:true" }) String CreoViewFileURL) throws JSONException {
 		_logger.trace("Entering Service: GetJSONFromCreoViewFileURL");
 		_logger.trace("Exiting Service: GetJSONFromCreoViewFileURL");
 		return new JSONObject("{\"message\",\"This service is not implemented yet. Please use a combination of ContentLoader services and GetJSONFromCreoViewFile\"}") ;

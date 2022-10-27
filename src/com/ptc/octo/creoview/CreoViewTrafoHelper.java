@@ -51,7 +51,7 @@ public class CreoViewTrafoHelper {
 		}
 		return parentNode;
 	}
-	public static void addTrafoInfos(JSONObject el, Matrix4d mat, String prefix) {
+	public static void addTrafoInfos(JSONObject el, Matrix4d mat, String prefix) throws JSONException {
 		String absLocation = getLocationfromMatrix(mat);
 		el.put(prefix+LOCATION, absLocation);
 		el.put(prefix+TRAFO_MATRIX4D_MAT, mat);
@@ -65,7 +65,7 @@ public class CreoViewTrafoHelper {
 		return BigDecimal.valueOf(number).setScale(ROUND_SCALE,RoundingMode.HALF_UP).doubleValue();
 	}
 	
-	public static void addAbsoluteTrafoInfos(JSONObject parentJson, JSONObject myJson, Matrix4d relTrafo, String prefix) {
+	public static void addAbsoluteTrafoInfos(JSONObject parentJson, JSONObject myJson, Matrix4d relTrafo, String prefix) throws JSONException {
 		if(parentJson==null || !parentJson.has(prefix+TRAFO_MATRIX4D_MAT)) {
 			addTrafoInfos(myJson, relTrafo, prefix);
 		}else{

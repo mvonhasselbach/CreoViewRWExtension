@@ -18,13 +18,13 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
 import javax.vecmath.Matrix4d;
+import javax.vecmath.Point3f;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -37,7 +37,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ptc.octo.creoview.Structure2.CompInst;
-import com.ptc.octo.creoview.Structure2.LocatorList;
 
 public class CreoViewRWHelper {
 
@@ -54,6 +53,15 @@ public class CreoViewRWHelper {
 	private static final String ABSOLUTE_BOUNDING_BOX = "Absolute Bounding Box";
 	//private static final String CALCULATED_BOUNDING_BOX = "Calculated Bounding Box";
 	
+	/**
+	 * Convert pvs or the pvs in a pvz to different JSOn formats:
+	 * java com.ptc.octo.creoview.CreoViewRWHelper <pvs_or_pvz_file>
+	 * 
+	 * Convert JSON to pvs:
+	 * java com.ptc.octo.creoview.CreoViewRWHelper import <json_file>
+	 * 
+	 * @param args
+	 */
 	public static void main(String[] args) {
 		System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
 		System.out.println("logger class: "+logger.getClass());
@@ -73,7 +81,7 @@ public class CreoViewRWHelper {
 					args.length>1 ? args[1] : null, 
 					args.length>2 ? args[2] : null
 			);			
-			System.out.print( new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(new TreeMap(json.toMap()) ));
+			System.out.print( json.toString(3) );
 		} catch (Exception e) {
 			System.err.println(e.getMessage());
 			e.printStackTrace();
@@ -144,7 +152,6 @@ public class CreoViewRWHelper {
 		// reduce the json output to the specified list of properties now
 		if(returnedProperties !=null) CreoViewRWHelper.reduceJSON2Props(json, returnedProperties.split(","));
 		if (stream != null) stream.close();
-		
 		return json;
 	}
 
@@ -255,10 +262,11 @@ public class CreoViewRWHelper {
 	 * @param pnode
 	 * @return
 	 * @throws JSONException
-	 */	private static JSONObject getPVS2JSONFromDefMutTree(DefaultMutableTreeNode node) {
-		// TODO Auto-generated method stub
-		return null;
-	}
+	 */	
+//	private static JSONObject getPVS2JSONFromDefMutTree(DefaultMutableTreeNode node) {
+//		// TODO Auto-generated method stub
+//		return null;
+//	}
 
 	/**
 	 * outputs the format that was produced by the first version of this Extension. 
@@ -288,8 +296,8 @@ public class CreoViewRWHelper {
 	private static DefaultMutableTreeNode structure2ToIeTree(Structure2.Comp comp, Structure2.CompInst compInst,
 			DefaultMutableTreeNode pnode) throws JSONException {
 		//TODO: having these as static params is not nice - they should be specific to the method invocation
-		boolean isNestedLinkProperties=true;
-		boolean isNestedPartProperties=true;
+//		boolean isNestedLinkProperties=true;
+//		boolean isNestedPartProperties=true;
 
 		JSONObject el = new JSONObject();		
 		JSONObject propEl = addProperties(el, comp.properties, "properties");
@@ -330,7 +338,7 @@ public class CreoViewRWHelper {
 		
 		String path = "/";
 		if (compInst != null) {
-			Hashtable compInstAttrs = compInst.properties;
+//			Hashtable compInstAttrs = compInst.properties;
 			JSONObject lpropEl = addProperties(el, comp.properties, "link_properties");
 			Matrix4d mat = Structure2.getMatrix4dFromTranslationAndOrientation(compInst.translation,
 					compInst.orientation);
@@ -355,15 +363,23 @@ public class CreoViewRWHelper {
 		return node;
 	}
 
-	private static int outputRecurseDefault(Structure2.Comp comp, Structure2.CompInst compInst, JSONObject rootJson, JSONObject parentJson, int childIdx) {
+	private static int outputRecurseDefault(Structure2.Comp comp, Structure2.CompInst compInst, JSONObject rootJson, JSONObject parentJson, int childIdx) throws JSONException {
 		JSONObject thisNode = new JSONObject();
-		String pPath = parentJson==null? "" : parentJson.getString("Part ID Path");
+		String pPath = parentJson==null? "" : parentJson.getString("Part ID Path").equals("/") ? "" : parentJson.getString("Part ID Path");
 		String pNamePath = parentJson==null? "" : parentJson.getString("Part Path");
 		if(compInst!=null) compInst.id = compInst.id!=null ? compInst.id : "@@PV-AUTO-ID@@"+ String.format("%03d", childIdx);
-		String idPath = compInst==null ? "" : pPath+"/"+compInst.id;
-		rootJson.put( (idPath.equals("")?"/":idPath), thisNode);
-		
-		JSONObject propEl = addProperties(thisNode, comp.properties, "");
+		//String idPath = compInst==null ? "" : pPath+"/"+compInst.id;
+		//root node handling is not consistent
+		String idPath=null, levelPath=null;
+		if(parentJson==null) {
+			levelPath="/"; //this is an inconsistency in the format of the Path! The root element should have "" instead of "/" ...
+			idPath="";
+		}else{ 
+			idPath=pPath+"/"+compInst.id;
+			levelPath=idPath;
+		}
+		rootJson.put( levelPath, thisNode);
+		addProperties(thisNode, comp.properties, "");
 		JSONObject pvSysP = new JSONObject();
 		pvSysP.putOpt(BOUNDING_BOX,comp.shape.bbox);
 		if (compInst != null) {
@@ -375,6 +391,7 @@ public class CreoViewRWHelper {
 			CreoViewTrafoHelper.addAbsoluteTrafoInfos(parentJson, pvSysP, mat, INSTANCE_PREFIX+ABSOLUTE_PREFIX);
 			
 			pvSysP.put("Instance ID", compInst.id);
+			pvSysP.put("Part ID", compInst.id);
 			pvSysP.put("Instance Name", compInst.name);
 			pvSysP.put("Instance Type", compInst.type);			
 		}
@@ -383,10 +400,10 @@ public class CreoViewRWHelper {
 		pvSysP.putOpt("Display Name", comp.name);
 		//pvSysP.putOpt("Model Extents (mm)", comp.modelUnitLength);
 		pvSysP.put("OL File Name", (comp.shape.name!=null && comp.shape.name.endsWith(".ol") ? comp.shape.name : ""));
-		pvSysP.putOpt("Part Depth", idPath.split("/").length-1);
-		pvSysP.putOpt("Part ID Path", idPath);
+		pvSysP.putOpt("Part Depth", String.valueOf(idPath.split("/").length==0?1:idPath.split("/").length));
+		pvSysP.putOpt("Part ID Path", levelPath);
 		pvSysP.putOpt("Part Name", comp.name);
-		String partNamePath = compInst==null ? "/"+comp.name : pNamePath+"/"+comp.name;
+		String partNamePath = compInst==null ? comp.name : pNamePath+"/"+comp.name;
 		pvSysP.putOpt("Part Path", partNamePath);
 		thisNode.putOpt("__PV_SystemProperties",pvSysP);
 		
@@ -417,8 +434,8 @@ public class CreoViewRWHelper {
 			allChildCount = allChildCount+grandChildCount;
 			directChildCount++;
 		}
-		pvSysP.putOpt("Direct Child Count", directChildCount);
-		pvSysP.putOpt("Child Count", allChildCount);
+		pvSysP.putOpt("Direct Child Count", String.valueOf(directChildCount));
+		pvSysP.putOpt("Child Count", String.valueOf(allChildCount));
 
 		if(parentJson!=null) {
 			float[] absBBox = parentJson.has(ABSOLUTE_BOUNDING_BOX) ? (float[]) parentJson.get(ABSOLUTE_BOUNDING_BOX) : new float[6];
@@ -433,9 +450,9 @@ public class CreoViewRWHelper {
 		}
 		//TODO: we may want to calculate the relative combined bbox as well!?!
 		float[] myAbsBBox = pvSysP.has(ABSOLUTE_BOUNDING_BOX) ? (float[]) pvSysP.get(ABSOLUTE_BOUNDING_BOX) : new float[6];
-//		pvSysP.put("Model Extents (m)", new Point3f(myAbsBBox[0],myAbsBBox[1],myAbsBBox[2]).distance(new Point3f(myAbsBBox[3],myAbsBBox[4],myAbsBBox[5])) );
+		pvSysP.put("Diagonal Model Extents (mm)", String.valueOf( 1000* new Point3f(myAbsBBox[0],myAbsBBox[1],myAbsBBox[2]).distance(new Point3f(myAbsBBox[3],myAbsBBox[4],myAbsBBox[5]))));
 		//‘model extents’ is the longest of the 3 bbox axes. It is not the diagonal. (stupid imo)
-		pvSysP.put("Model Extents (mm)", 1000*Math.max(Math.abs(myAbsBBox[0]-myAbsBBox[3]), Math.max(Math.abs(myAbsBBox[1]-myAbsBBox[4]), Math.abs(myAbsBBox[2]-myAbsBBox[5]))));
+		pvSysP.put("Model Extents (mm)", String.valueOf( 1000*Math.max(Math.abs(myAbsBBox[0]-myAbsBBox[3]), Math.max(Math.abs(myAbsBBox[1]-myAbsBBox[4]), Math.abs(myAbsBBox[2]-myAbsBBox[5])))));
 		
 		pvSysP.put("Model Bounds",  formatAsString(pvSysP.opt(ABSOLUTE_BOUNDING_BOX)));
 		pvSysP.remove(ABSOLUTE_BOUNDING_BOX);
@@ -460,14 +477,14 @@ public class CreoViewRWHelper {
 		return allChildCount;
 	}
 
-	private static String formatAsString(Object array) {
+	private static String formatAsString(Object array) throws JSONException {
 		if(array == null) return null;
 		if(array instanceof JSONArray) return ((JSONArray)array).join(" ");		
 		if(array instanceof List || array.getClass().isArray()) return new JSONArray(array).join(" ");
 		return null;
 	}
 
-	public static JSONObject addProperties(JSONObject thisNode, Hashtable compAttrs, String defaultPropgroupName) {
+	public static JSONObject addProperties(JSONObject thisNode, Hashtable compAttrs, String defaultPropgroupName) throws JSONException {
 		JSONObject propEl=new JSONObject();
 		thisNode.put(defaultPropgroupName, propEl);
 		if (compAttrs != null) {
@@ -502,8 +519,9 @@ public class CreoViewRWHelper {
 	 * @param pPath
 	 * @return
 	 * @throws JsonProcessingException 
+	 * @throws JSONException 
 	 */
-	private static JSONObject outputRecurseSed2(DefaultMutableTreeNode thisNode, JSONObject rootJson, String pPath, boolean isNested) throws JsonProcessingException {
+	private static JSONObject outputRecurseSed2(DefaultMutableTreeNode thisNode, JSONObject rootJson, String pPath, boolean isNested) throws JSONException, JsonProcessingException {
 		Hashtable nodeData = (Hashtable)thisNode.getUserObject();
 //		JSONObject thisNodeJ = new JSONObject(nodeData);
 		//use Jackson json serializer to handle incorrect serialization of Hashtable subnodes like views and locators 
@@ -524,7 +542,7 @@ public class CreoViewRWHelper {
 		if(!isNested) rootJson.put(levelPath, thisNodeJ);
 		
 		Enumeration<TreeNode> nodesE = thisNode.children();
-		JSONArray childs = new JSONArray();
+//		JSONArray childs = new JSONArray();
 		while(nodesE.hasMoreElements()) {
 			DefaultMutableTreeNode childNode = (DefaultMutableTreeNode) nodesE.nextElement();
 			if(isNested) {
@@ -623,13 +641,13 @@ public class CreoViewRWHelper {
 			}
 		}
 		JSONArray childAr = json.optJSONArray("components");
-		if(childAr!=null)for(Object childObj : childAr) {
-			myNode.add( getStructureTreeFromJson((JSONObject)childObj) );
+		if(childAr!=null)for(int i=0; childAr.length()<i; i++) {
+			myNode.add( getStructureTreeFromJson(childAr.getJSONObject(i)) );
 		}
 		return myNode;
 	}
 
-	private static JSONObject nest2WTSed2(JSONObject json) {
+	private static JSONObject nest2WTSed2(JSONObject json) throws JSONException {
 		//build components structure from paths
 		JSONObject resObj = null;
 		for(String key : JSONObject.getNames(json)) {
@@ -643,7 +661,5 @@ public class CreoViewRWHelper {
 		}
 		return resObj;
 	}
-		
-	
-	
+
 }

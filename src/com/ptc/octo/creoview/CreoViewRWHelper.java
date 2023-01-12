@@ -42,7 +42,7 @@ public class CreoViewRWHelper {
 
 	private static final String BOUNDING_BOX = "Bounding Box";
 	private static final Logger logger = LoggerFactory.getLogger(CreoViewRWHelper.class);
-	//private static int BUFFER_SIZE_4096 = 8192;
+	//private static int BUFFER_SIZE_4096 = 8192; 
 	public static final int PVS2JSON = 3;
 	public static final int WT_STRUCTURE2 = 2;
 	public static final int DEFAULT = 1;
@@ -365,8 +365,8 @@ public class CreoViewRWHelper {
 
 	private static int outputRecurseDefault(Structure2.Comp comp, Structure2.CompInst compInst, JSONObject rootJson, JSONObject parentJson, int childIdx) throws JSONException {
 		JSONObject thisNode = new JSONObject();
-		String pPath = parentJson==null? "" : parentJson.getString("Part ID Path").equals("/") ? "" : parentJson.getString("Part ID Path");
-		String pNamePath = parentJson==null? "" : parentJson.getString("Part Path");
+		String pPath = parentJson==null || parentJson.optString("Part ID Path")==null || "/".equals(parentJson.optString("Part ID Path")) ? "" : parentJson.getString("Part ID Path");
+		String pNamePath = parentJson==null || parentJson.optString("Part Path")==null ? "" : parentJson.getString("Part Path");
 		if(compInst!=null) compInst.id = compInst.id!=null ? compInst.id : "@@PV-AUTO-ID@@"+ String.format("%03d", childIdx);
 		//String idPath = compInst==null ? "" : pPath+"/"+compInst.id;
 		//root node handling is not consistent
@@ -383,6 +383,7 @@ public class CreoViewRWHelper {
 		JSONObject pvSysP = new JSONObject();
 		pvSysP.putOpt(BOUNDING_BOX,comp.shape.bbox);
 		if (compInst != null) {
+			addProperties(thisNode, compInst.properties, "");
 //			pvSysP.put("Instance Translation", compInst.translation);//TODO: comment this and next line
 //			pvSysP.put("Instance Orientation", compInst.orientation);
 			Matrix4d mat = Structure2.getMatrix4dFromTranslationAndOrientation(compInst.translation, compInst.orientation);
@@ -473,7 +474,7 @@ public class CreoViewRWHelper {
 
 		pvSysP.remove(INSTANCE_PREFIX+ABSOLUTE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D_MAT);
 		pvSysP.remove(INSTANCE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D_MAT);
-
+		//for(String name : JSONObject.getNames(thisNode) )System.out.println("thisNode name: "+name);
 		return allChildCount;
 	}
 

@@ -5790,6 +5790,9 @@ public class Structure2 //extends Structure
       public int writeIdx; // used only when being written
 
       public boolean isMultibody = false;
+       public boolean quickViewPresent = false;
+       public boolean featurePresent = false;
+       public boolean highQualityThumbnailPresent = false;
 
       public Comp() { this(null); }
       public Comp(boolean p) { this(null, p); }

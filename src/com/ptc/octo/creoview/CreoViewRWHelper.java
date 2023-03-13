@@ -361,12 +361,10 @@ public class CreoViewRWHelper {
 		rootJson.put( levelPath, thisNode);
 		addProperties(thisNode, comp.properties, "");
 		JSONObject pvSysP = new JSONObject();
-		pvSysP.putOpt(BOUNDING_BOX,comp.shape.bbox);//TODO: add scaling factor!!!
+		pvSysP.putOpt(BOUNDING_BOX,comp.shape.bbox);//I didn't add scaling factor becuase it would mean that all subsequent trafos would have to be normalized accordingly.
+													//instead I add the Scale as an output and let it up to the consumer to process it
 		if (compInst != null) {
-			addProperties(thisNode, compInst.properties, "");
-//			pvSysP.put("Instance Translation", compInst.translation);//TODO: comment this and next line
-//			pvSysP.put("Instance Orientation", compInst.orientation);
-			Matrix4d mat = Structure2.getMatrix4dFromTranslationAndOrientation(compInst.translation, compInst.orientation);
+			addProperties(thisNode, compInst.properties, "");			Matrix4d mat = Structure2.getMatrix4dFromTranslationAndOrientation(compInst.translation, compInst.orientation);
 			pvSysP.putOpt("Scale", mat.getScale());
 			pvSysP.putOpt(BOUNDING_BOX,comp.shape.bbox);
 			CreoViewTrafoHelper.addTrafoInfos(pvSysP, mat, INSTANCE_PREFIX);
@@ -431,7 +429,7 @@ public class CreoViewRWHelper {
 			}
 			parentJson.put(ABSOLUTE_BOUNDING_BOX, absBBox);
 		}
-		//TODO: we may want to calculate the relative combined bbox as well!?!
+		//we may want to calculate the relative combined bbox as well - keep it out for now because it would mean to consider the scale stuff. I'll leave it to the consumer to calculate it ;)
 		float[] myAbsBBox = pvSysP.has(ABSOLUTE_BOUNDING_BOX) ? (float[]) pvSysP.get(ABSOLUTE_BOUNDING_BOX) : new float[6];
 		pvSysP.put("Diagonal Model Extents (mm)", String.valueOf( 1000* new Point3f(myAbsBBox[0],myAbsBBox[1],myAbsBBox[2]).distance(new Point3f(myAbsBBox[3],myAbsBBox[4],myAbsBBox[5]))));
 		//‘model extents’ is the longest of the 3 bbox axes. It is not the diagonal. (stupid imo)

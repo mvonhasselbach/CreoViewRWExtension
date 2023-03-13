@@ -52,6 +52,11 @@
 			<location>C:/Users/mvonhasselbach/Desktop/Onshape-WT/SmartPlatforms/LongFrameWLocs.pvz</location>
 		</link>
 		<link>
+			<name>data/OFFROAD_PARTSLIST_0000023593_en-US.pvz</name>
+			<type>1</type>
+			<location>C:/Users/mvonhasselbach/Downloads/OFFROAD_PARTSLIST_0000023593_en-US.pvz</location>
+		</link>
+		<link>
 			<name>data/T00000001, Positioning Truck, A.4 (Design).pvz</name>
 			<type>1</type>
 			<location>C:/Users/mvonhasselbach/Desktop/Onshape-WT/SmartPlatforms/T00000001, Positioning Truck, A.4 (Design).pvz</location>

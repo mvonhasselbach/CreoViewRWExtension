@@ -252,23 +252,6 @@ public class CreoViewRWHelper {
 
 	
 	/**
-	 * if this should be spit out as a structure like the one in Steve Ghees pvs2json conversion we'd have to:
-	 * 1. Separate all nodes with properties in the top-level components[]
-	 * 2. add a cid (incremented idx) and vid (=pvs_inst_id)
-	 * 3. create nested children[] as we do right now BUT only keep compInt/link params
-	 * 4. create idmap with cid, path, idx (either idx of siblings or =vid) and par (=parent vid)
-	 * @param comp
-	 * @param compInst
-	 * @param pnode
-	 * @return
-	 * @throws JSONException
-	 */	
-//	private static JSONObject getPVS2JSONFromDefMutTree(DefaultMutableTreeNode node) {
-//		// TODO Auto-generated method stub
-//		return null;
-//	}
-
-	/**
 	 * outputs the format that was produced by the first version of this Extension. 
 	 * It's a nested JSON with all kind of information, incl rel and abs trafo matrix
 	 * It originated from a former InfoEngine webject that was used for pvs processing
@@ -295,9 +278,6 @@ public class CreoViewRWHelper {
 	}
 	private static DefaultMutableTreeNode structure2ToIeTree(Structure2.Comp comp, Structure2.CompInst compInst,
 			DefaultMutableTreeNode pnode) throws JSONException {
-		//TODO: having these as static params is not nice - they should be specific to the method invocation
-//		boolean isNestedLinkProperties=true;
-//		boolean isNestedPartProperties=true;
 
 		JSONObject el = new JSONObject();		
 		JSONObject propEl = addProperties(el, comp.properties, "properties");
@@ -381,12 +361,14 @@ public class CreoViewRWHelper {
 		rootJson.put( levelPath, thisNode);
 		addProperties(thisNode, comp.properties, "");
 		JSONObject pvSysP = new JSONObject();
-		pvSysP.putOpt(BOUNDING_BOX,comp.shape.bbox);
+		pvSysP.putOpt(BOUNDING_BOX,comp.shape.bbox);//TODO: add scaling factor!!!
 		if (compInst != null) {
 			addProperties(thisNode, compInst.properties, "");
 //			pvSysP.put("Instance Translation", compInst.translation);//TODO: comment this and next line
 //			pvSysP.put("Instance Orientation", compInst.orientation);
 			Matrix4d mat = Structure2.getMatrix4dFromTranslationAndOrientation(compInst.translation, compInst.orientation);
+			pvSysP.putOpt("Scale", mat.getScale());
+			pvSysP.putOpt(BOUNDING_BOX,comp.shape.bbox);
 			CreoViewTrafoHelper.addTrafoInfos(pvSysP, mat, INSTANCE_PREFIX);
 			//calculate absolute trafo from parent trafo and my trafo
 			CreoViewTrafoHelper.addAbsoluteTrafoInfos(parentJson, pvSysP, mat, INSTANCE_PREFIX+ABSOLUTE_PREFIX);
@@ -439,7 +421,7 @@ public class CreoViewRWHelper {
 		pvSysP.putOpt("Child Count", String.valueOf(allChildCount));
 
 		if(parentJson!=null) {
-			float[] absBBox = parentJson.has(ABSOLUTE_BOUNDING_BOX) ? (float[]) parentJson.get(ABSOLUTE_BOUNDING_BOX) : new float[6];
+			float[] absBBox = parentJson.has(ABSOLUTE_BOUNDING_BOX) ? (float[]) parentJson.get(ABSOLUTE_BOUNDING_BOX) : null;
 			if(comp.shape.bbox!=null) { //pvs provided bboxes have precedence, my calculated ones are used when there is no pvs-provided one
 				absBBox = CreoViewTrafoHelper.aggregateBBox(comp.shape.bbox, (Matrix4d) pvSysP.get(INSTANCE_PREFIX+ABSOLUTE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D_MAT), absBBox);
 				float[] myAbsBBox = CreoViewTrafoHelper.aggregateBBox(comp.shape.bbox, (Matrix4d) pvSysP.get(INSTANCE_PREFIX+ABSOLUTE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D_MAT), null);

@@ -22,9 +22,19 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>data/000-FJ21611AP_High.pvz</name>
+			<type>1</type>
+			<location>C:/Users/mvonhasselbach/Desktop/000-FJ21611AP_High.pvz</location>
+		</link>
+		<link>
 			<name>data/0000028990.pvz</name>
 			<type>1</type>
 			<location>C:/Users/mvonhasselbach/Downloads/0000028990.pvz</location>
+		</link>
+		<link>
+			<name>data/1121f274-4efd-465c-9957-28529ad7bca3.pvz</name>
+			<type>1</type>
+			<location>C:/Users/mvonhasselbach/Downloads/1121f274-4efd-465c-9957-28529ad7bca3.pvz</location>
 		</link>
 		<link>
 			<name>data/AsmWLocators.pvz</name>

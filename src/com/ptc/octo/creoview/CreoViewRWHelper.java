@@ -364,7 +364,8 @@ public class CreoViewRWHelper {
 		pvSysP.putOpt(BOUNDING_BOX,comp.shape.bbox);//I didn't add scaling factor becuase it would mean that all subsequent trafos would have to be normalized accordingly.
 													//instead I add the Scale as an output and let it up to the consumer to process it
 		if (compInst != null) {
-			addProperties(thisNode, compInst.properties, "");			Matrix4d mat = Structure2.getMatrix4dFromTranslationAndOrientation(compInst.translation, compInst.orientation);
+			addProperties(thisNode, compInst.properties, "");			
+			Matrix4d mat = Structure2.getMatrix4dFromTranslationAndOrientation(compInst.translation, compInst.orientation);
 			pvSysP.putOpt("Scale", mat.getScale());
 			pvSysP.putOpt(BOUNDING_BOX,comp.shape.bbox);
 			CreoViewTrafoHelper.addTrafoInfos(pvSysP, mat, INSTANCE_PREFIX);
@@ -374,12 +375,18 @@ public class CreoViewRWHelper {
 			pvSysP.put("Instance ID", compInst.id);
 			pvSysP.put("Part ID", compInst.id);
 			pvSysP.put("Instance Name", compInst.name);
-			pvSysP.put("Instance Type", compInst.type);			
+			pvSysP.put("Instance Type", compInst.type);
 		}
 		
 		pvSysP.putOpt("Component Name", comp.name);
 		pvSysP.putOpt("Display Name", comp.name);
-		//pvSysP.putOpt("Model Extents (mm)", comp.modelUnitLength);
+//		
+//		pvSysP.putOpt("Mdl Unit Length", comp.modelUnitLength);
+//		pvSysP.putOpt("Mdl Unit Mass", comp.modelUnitMass);
+//		pvSysP.putOpt("Dsp Unit Length", comp.displayUnitLength);
+//		pvSysP.putOpt("Dsp Unit Mass", comp.displayUnitMass);
+		
+		//comp.unit
 		pvSysP.put("OL File Name", (comp.shape.name!=null && comp.shape.name.endsWith(".ol") ? comp.shape.name : ""));
 		pvSysP.putOpt("Part Depth", String.valueOf(idPath.split("/").length==0?1:idPath.split("/").length));
 		pvSysP.putOpt("Part ID Path", levelPath);
@@ -536,7 +543,13 @@ public class CreoViewRWHelper {
 	}
 
 	public static void writePVSFromJSON(JSONObject json, String jsonFormat, File pvFile) throws Exception {
-		if(jsonFormat!=null && jsonFormat.equalsIgnoreCase("WT_SED2_FLAT")) json = nest2WTSed2(json);
+		if(jsonFormat==null)jsonFormat = "DEFAULT";
+		if( !jsonFormat.equalsIgnoreCase("WT_SED2_NESTED") && !jsonFormat.equalsIgnoreCase("WT_SED2_FLAT") ) jsonFormat = "DEFAULT";
+		if(jsonFormat.equalsIgnoreCase("DEFAULT")) {
+			json = defaultJson2WTSedFlat(json);
+			jsonFormat ="WT_SED2_FLAT"; 
+		}
+		if(jsonFormat.equalsIgnoreCase("WT_SED2_FLAT")) json = nest2WTSed2(json);
 		//TODO: eventually preprocess other json formats	
 //		int format = jsonFormat==null ? CreoViewRWHelper.DEFAULT : 
 //	 		jsonFormat.equalsIgnoreCase("WT_SED2_FLAT") ? CreoViewRWHelper.WT_SED2_FLAT : 
@@ -622,7 +635,7 @@ public class CreoViewRWHelper {
 			}
 		}
 		JSONArray childAr = json.optJSONArray("components");
-		if(childAr!=null)for(int i=0; childAr.length()<i; i++) {
+		if(childAr!=null)for(int i=0; i<childAr.length(); i++) {
 			myNode.add( getStructureTreeFromJson(childAr.getJSONObject(i)) );
 		}
 		return myNode;
@@ -632,15 +645,107 @@ public class CreoViewRWHelper {
 		//build components structure from paths
 		JSONObject resObj = null;
 		for(String key : JSONObject.getNames(json)) {
-			JSONObject thisObj = json.getJSONObject(key);
+			Object thisObj = json.get(key);
+			if( !(thisObj instanceof JSONObject) ) return json;
+			JSONObject thisJObj = json.getJSONObject(key);
 			if(key.equals("/")) resObj = json.getJSONObject(key);
 			else {
 				String pKey = key.substring(0, key.lastIndexOf("/"));
 				pKey = pKey.equals("") ? "/" : pKey;
-				json.getJSONObject(pKey).append("components", thisObj);
+				json.getJSONObject(pKey).append("components", thisJObj);
+			}
+			
+		}
+		return resObj;
+	}
+
+	private static JSONObject defaultJson2WTSedFlat(JSONObject json) {
+		JSONObject resObj = new JSONObject();
+		for(String key : JSONObject.getNames(json)) {
+			JSONObject rO = new JSONObject();
+			rO.put("id_path", key);
+			resObj.put(key, rO);
+			JSONObject propLookup = new JSONObject();
+			rO.put("wrtskp_property_group_lookup", propLookup);
+			
+			Object thisObj = json.get(key);
+			if( !(thisObj instanceof JSONObject) ) return json;
+			JSONObject thisJObj = json.getJSONObject(key);
+			
+			for(String grp : JSONObject.getNames(thisJObj)) {
+				JSONObject props = thisJObj.optJSONObject(grp);
+				if(props!=null){
+					if(grp.equals("__PV_SystemProperties")) {			
+						rO = addProperty(props, "OL File Name", rO, "wrtskp_shapesource");
+						rO = addProperty(props, "Instance Location", rO, "wrtskp_location");
+						rO = addProperty(props, "Component Bounds", rO, "wrtskp_bbox");
+						rO = addProperty(props, "Display Name", rO, "wrtskp_display_instance_name");
+						rO = addProperty(props, "Instance ID", rO, "wrtskp_pvcid");
+						rO = addProperty(props, "Instance ID", rO, "Feature_Id");
+						rO = addProperty(props, "Direct Child Count", rO, "child_count");
+						rO = addProperty(props, "Component Name", rO, "Feature_Name");
+						rO = addProperty(props, "Length Unit", rO, "length_unit", "M");
+						rO = addProperty(props, "ShapeType", rO, "shapetype", "OL");
+						
+						rO = addLocators( props, rO);
+						rO = addViews( props, rO);
+					}else {
+						if(!grp.equals("")) {
+							//build the prop group lookup
+							for(String prop : JSONObject.getNames(thisJObj.getJSONObject(grp))) {
+								propLookup.put(prop, grp);
+							}					
+						}
+						//copy all attributes. We'll have some duplication with the SysProps but who cares....
+						if(props.length()>0) {
+							for(String prop : JSONObject.getNames(props)) {
+								addProperty(props, prop, rO, prop);
+							}
+						}
+					}
+				}
 			}
 		}
 		return resObj;
+	}
+
+	private static JSONObject addProperty(JSONObject fromProps, String fromProp, JSONObject toProps, String toProp, String defaultValue) {
+		Object fromVal = fromProps.opt(fromProp);
+		if(fromVal!=null) toProps.put(toProp, fromVal);
+		else if(defaultValue!=null) toProps.put(toProp, defaultValue);
+		return toProps;
+	}
+
+	private static JSONObject addProperty(JSONObject fromProps, String fromProp, JSONObject toProps, String toProp) {
+		return addProperty(fromProps, fromProp, toProps, toProp, null);
+	}
+
+	private static JSONObject addLocators(JSONObject fromProps, JSONObject toProps) {
+		JSONArray locs = fromProps.optJSONArray("locators");
+		if(locs!=null) {
+			JSONObject toLocs = new JSONObject();
+			toProps.put("wrtskp_locators", toLocs);
+			addUnknownTagInfo(toLocs);
+			toLocs.put("unknowTagList", new ArrayList<>());
+			locs.forEach(loc -> addUnknownTagInfo((JSONObject)loc));
+			toLocs.put("locators", locs);
+		}
+		return toProps;
+	}
+
+	private static JSONObject addViews(JSONObject fromProps, JSONObject toProps) {
+		JSONArray views = fromProps.optJSONArray("views");
+		if(views!=null) {
+			views.forEach(view -> addUnknownTagInfo((JSONObject)view));
+			toProps.put("wrtskp_views", views);
+		}
+		return toProps;
+	}
+
+	private static void addUnknownTagInfo(JSONObject toLocs) {
+		toLocs.put("hasUnknowTagBits", false);
+		toLocs.put("tagBits", 0);
+		toLocs.put("unknownTagBitData", (Object)null);
 	}
 
 }

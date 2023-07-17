@@ -4443,6 +4443,8 @@ public class Structure2 //extends Structure
        addNumberArray(h, WRITE_SKIP_PREFIX+BBOX,        childComp.shape.bbox,    null, " M");
        addNumberArray(h, WRITE_SKIP_PREFIX+TRANSLATION, compInst.translation, null, null);
        addNumberArray(h, WRITE_SKIP_PREFIX+ORIENTATION, compInst.orientation,   null, null);
+       //TODO: add location to output (not ootb)
+       //TODO: write Thumbnail3D to output (not ootb)
 
        if( childComp.properties != null ) h.putAll(childComp.properties);
        if( childComp.viewableList != null ) h.put(WRITE_SKIP_PREFIX+"viewables", childComp.viewableList);

@@ -368,6 +368,8 @@ public class CreoViewRWHelper {
 			Matrix4d mat = Structure2.getMatrix4dFromTranslationAndOrientation(compInst.translation, compInst.orientation);
 			pvSysP.putOpt("Scale", mat.getScale());
 			pvSysP.putOpt(BOUNDING_BOX,comp.shape.bbox);
+			pvSysP.putOpt("Thumb3D File Name", comp.thumbnail3d.name);
+			if(comp.thumbnail3d != null && comp.thumbnail3d.index!=-1) pvSysP.putOpt("Thumb3D Index", comp.thumbnail3d.index);
 			CreoViewTrafoHelper.addTrafoInfos(pvSysP, mat, INSTANCE_PREFIX);
 			//calculate absolute trafo from parent trafo and my trafo
 			CreoViewTrafoHelper.addAbsoluteTrafoInfos(parentJson, pvSysP, mat, INSTANCE_PREFIX+ABSOLUTE_PREFIX);
@@ -461,7 +463,7 @@ public class CreoViewRWHelper {
 
 		pvSysP.remove(INSTANCE_PREFIX+ABSOLUTE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D_MAT);
 		pvSysP.remove(INSTANCE_PREFIX+CreoViewTrafoHelper.TRAFO_MATRIX4D_MAT);
-		//for(String name : JSONObject.getNames(thisNode) )System.out.println("thisNode name: "+name);
+		//for(String name : thisNode.keySet() )System.out.println("thisNode name: "+name);
 		return allChildCount;
 	}
 
@@ -598,13 +600,13 @@ public class CreoViewRWHelper {
 	private static DefaultMutableTreeNode getStructureTreeFromJson(JSONObject json) throws JsonParseException, JsonMappingException, JSONException, IOException {
 		Hashtable<String, Object> props = new Hashtable<>();
 		DefaultMutableTreeNode myNode = new DefaultMutableTreeNode(props);
-		for(String key : JSONObject.getNames(json)) {
+		for(String key : json.keySet()) {
 			if(key.startsWith(Structure2.WRITE_SKIP_PREFIX)) {
 				switch (key) {
 				case "wrtskp_property_group_lookup":
 					JSONObject jobj = json.getJSONObject(key);
 					Hashtable<String, String> pht = new Hashtable<>();
-					for(String pkey : JSONObject.getNames(jobj)) pht.put(pkey, jobj.getString(pkey));
+					for(String pkey : jobj.keySet()) pht.put(pkey, jobj.getString(pkey));
 					props.put(key, pht);
 					break;
 				case "wrtskp_viewables": //TODO: write out correctly: add in ht by type as key and value is single or list of filenames
@@ -644,7 +646,7 @@ public class CreoViewRWHelper {
 	private static JSONObject nest2WTSed2(JSONObject json) throws JSONException {
 		//build components structure from paths
 		JSONObject resObj = null;
-		for(String key : JSONObject.getNames(json)) {
+		for(String key : json.keySet()) {
 			Object thisObj = json.get(key);
 			if( !(thisObj instanceof JSONObject) ) return json;
 			JSONObject thisJObj = json.getJSONObject(key);
@@ -661,7 +663,7 @@ public class CreoViewRWHelper {
 
 	private static JSONObject defaultJson2WTSedFlat(JSONObject json) {
 		JSONObject resObj = new JSONObject();
-		for(String key : JSONObject.getNames(json)) {
+		for(String key : json.keySet()) {
 			JSONObject rO = new JSONObject();
 			rO.put("id_path", key);
 			resObj.put(key, rO);
@@ -672,7 +674,7 @@ public class CreoViewRWHelper {
 			if( !(thisObj instanceof JSONObject) ) return json;
 			JSONObject thisJObj = json.getJSONObject(key);
 			
-			for(String grp : JSONObject.getNames(thisJObj)) {
+			for(String grp : thisJObj.keySet()) {
 				JSONObject props = thisJObj.optJSONObject(grp);
 				if(props!=null){
 					if(grp.equals("__PV_SystemProperties")) {			
@@ -692,13 +694,13 @@ public class CreoViewRWHelper {
 					}else {
 						if(!grp.equals("")) {
 							//build the prop group lookup
-							for(String prop : JSONObject.getNames(thisJObj.getJSONObject(grp))) {
+							for(String prop : thisJObj.getJSONObject(grp).keySet()) {
 								propLookup.put(prop, grp);
 							}					
 						}
 						//copy all attributes. We'll have some duplication with the SysProps but who cares....
 						if(props.length()>0) {
-							for(String prop : JSONObject.getNames(props)) {
+							for(String prop : props.keySet()) {
 								addProperty(props, prop, rO, prop);
 							}
 						}

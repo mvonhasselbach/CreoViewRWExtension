@@ -14,6 +14,7 @@ It support different output formats. See sample data sets in [./data](./data) :
 
 1. the **DEFAULT** format is the Vuforia Studio *metadata.json* format. This version of it has all the content of what Vuforia Studio can produce for static experiences
    PLUS the following additional attributes in the **__PV_SystemProperties** section:
+    - **Thumb3D File Name**: name of the 3D Thumbnail or Quickview file
 	- **Component Bounds**: Bounding Box info in 6 numbers (x,y,z of min point, x,y,z of max point) represented as a space-separated string. 
 	  The coordinates will be relative to the origin of the component.
 	- **Model Bounds**: Bounding Box in Model space, i.e. relative to the origin of the root assembly in the structure (global coordinates)

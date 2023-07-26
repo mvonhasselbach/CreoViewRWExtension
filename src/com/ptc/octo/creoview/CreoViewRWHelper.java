@@ -1,6 +1,7 @@
 package com.ptc.octo.creoview;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -36,7 +37,11 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ptc.octo.creoview.Structure2;
 import com.ptc.octo.creoview.Structure2.CompInst;
+//import com.ptc.wvs.server.util.Structure2;
+//import com.ptc.wvs.server.util.Structure2.CompInst;
+
 
 public class CreoViewRWHelper {
 
@@ -219,7 +224,38 @@ public class CreoViewRWHelper {
 		outputRecurseDefault(sed2.getRootComp(), null, rootJson, null, 0);
 		return rootJson;
 	}
+	
+	public static String getPvsAsString(Structure2 sed2) throws Exception{
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		String pvsStr="";
+		try {
+			sed2.writeED(baos);
+			baos.flush();
+			pvsStr = baos.toString();
+		} catch (Exception e) {
+			e.printStackTrace();
+			
+		}finally {
+			baos.close();
+		}
+		return pvsStr;
+	}
 
+	/**
+	 * export in one of the formats, reduced to the specified properties
+	 * @param sed2
+	 * @param format
+	 * @param properties
+	 * @return
+	 * @throws Exception
+	 * @throws JSONException
+	 */
+	public static JSONObject getJSONFromSed2Reduced2Props(Structure2 sed2, int format, String[] properties) throws Exception, JSONException {
+		JSONObject json = getJSONFromSed2(sed2, format);
+		if(properties !=null) reduceJSON2Props(json, properties);
+		return json;
+	}
+	
 	public static void reduceJSON2Props(JSONObject json, String[] properties) {
 		List<String> props = Arrays.asList(properties);
 		ArrayList<String> keys2remove = new ArrayList<String>();

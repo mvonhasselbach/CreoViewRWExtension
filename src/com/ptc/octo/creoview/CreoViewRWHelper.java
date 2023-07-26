@@ -259,7 +259,8 @@ public class CreoViewRWHelper {
 	public static void reduceJSON2Props(JSONObject json, String[] properties) {
 		List<String> props = Arrays.asList(properties);
 		ArrayList<String> keys2remove = new ArrayList<String>();
-		for (Iterator<String> keysIt = json.keys(); keysIt.hasNext();) {
+		for (@SuppressWarnings("unchecked")
+		Iterator<String> keysIt = json.keys(); keysIt.hasNext();) {
 			String key = keysIt.next();
 			Object val;
 			try {
@@ -636,13 +637,20 @@ public class CreoViewRWHelper {
 	private static DefaultMutableTreeNode getStructureTreeFromJson(JSONObject json) throws JsonParseException, JsonMappingException, JSONException, IOException {
 		Hashtable<String, Object> props = new Hashtable<>();
 		DefaultMutableTreeNode myNode = new DefaultMutableTreeNode(props);
-		for(String key : json.keySet()) {
+		for(@SuppressWarnings("unchecked")
+		Iterator<String> it=json.keys();it.hasNext();) {
+			String key = it.next();
 			if(key.startsWith(Structure2.WRITE_SKIP_PREFIX)) {
 				switch (key) {
 				case "wrtskp_property_group_lookup":
 					JSONObject jobj = json.getJSONObject(key);
 					Hashtable<String, String> pht = new Hashtable<>();
-					for(String pkey : jobj.keySet()) pht.put(pkey, jobj.getString(pkey));
+					for(@SuppressWarnings("unchecked")
+					Iterator<String> it2=jobj.keys(); it2.hasNext();) {
+						String pkey=it2.next();
+						pht.put(pkey, jobj.getString(pkey));
+					}
+					//for(String pkey : jobj.keySet()) pht.put(pkey, jobj.getString(pkey));
 					props.put(key, pht);
 					break;
 				case "wrtskp_viewables": //TODO: write out correctly: add in ht by type as key and value is single or list of filenames
@@ -682,7 +690,9 @@ public class CreoViewRWHelper {
 	private static JSONObject nest2WTSed2(JSONObject json) throws JSONException {
 		//build components structure from paths
 		JSONObject resObj = null;
-		for(String key : json.keySet()) {
+		for(@SuppressWarnings("unchecked")
+		Iterator<String> it=json.keys();it.hasNext();) {
+			String key = it.next();
 			Object thisObj = json.get(key);
 			if( !(thisObj instanceof JSONObject) ) return json;
 			JSONObject thisJObj = json.getJSONObject(key);
@@ -697,9 +707,11 @@ public class CreoViewRWHelper {
 		return resObj;
 	}
 
-	private static JSONObject defaultJson2WTSedFlat(JSONObject json) {
+	private static JSONObject defaultJson2WTSedFlat(JSONObject json) throws JSONException {
 		JSONObject resObj = new JSONObject();
-		for(String key : json.keySet()) {
+		for(@SuppressWarnings("unchecked")
+		Iterator<String> it=json.keys();it.hasNext();) {
+			String key = it.next();
 			JSONObject rO = new JSONObject();
 			rO.put("id_path", key);
 			resObj.put(key, rO);
@@ -710,7 +722,9 @@ public class CreoViewRWHelper {
 			if( !(thisObj instanceof JSONObject) ) return json;
 			JSONObject thisJObj = json.getJSONObject(key);
 			
-			for(String grp : thisJObj.keySet()) {
+			for(@SuppressWarnings("unchecked")
+			Iterator<String> it2=thisJObj.keys();it2.hasNext();) {
+				String grp = it2.next();
 				JSONObject props = thisJObj.optJSONObject(grp);
 				if(props!=null){
 					if(grp.equals("__PV_SystemProperties")) {			
@@ -730,13 +744,17 @@ public class CreoViewRWHelper {
 					}else {
 						if(!grp.equals("")) {
 							//build the prop group lookup
-							for(String prop : thisJObj.getJSONObject(grp).keySet()) {
+							for(@SuppressWarnings("unchecked")
+							Iterator<String> it3=thisJObj.getJSONObject(grp).keys();it3.hasNext();) {
+								String prop = it3.next();
 								propLookup.put(prop, grp);
 							}					
 						}
 						//copy all attributes. We'll have some duplication with the SysProps but who cares....
 						if(props.length()>0) {
-							for(String prop : props.keySet()) {
+							for(@SuppressWarnings("unchecked")
+							Iterator<String> it4=props.keys();it4.hasNext();) {
+								String prop = it4.next();
 								addProperty(props, prop, rO, prop);
 							}
 						}
@@ -747,40 +765,40 @@ public class CreoViewRWHelper {
 		return resObj;
 	}
 
-	private static JSONObject addProperty(JSONObject fromProps, String fromProp, JSONObject toProps, String toProp, String defaultValue) {
+	private static JSONObject addProperty(JSONObject fromProps, String fromProp, JSONObject toProps, String toProp, String defaultValue) throws JSONException {
 		Object fromVal = fromProps.opt(fromProp);
 		if(fromVal!=null) toProps.put(toProp, fromVal);
 		else if(defaultValue!=null) toProps.put(toProp, defaultValue);
 		return toProps;
 	}
 
-	private static JSONObject addProperty(JSONObject fromProps, String fromProp, JSONObject toProps, String toProp) {
+	private static JSONObject addProperty(JSONObject fromProps, String fromProp, JSONObject toProps, String toProp) throws JSONException {
 		return addProperty(fromProps, fromProp, toProps, toProp, null);
 	}
 
-	private static JSONObject addLocators(JSONObject fromProps, JSONObject toProps) {
+	private static JSONObject addLocators(JSONObject fromProps, JSONObject toProps) throws JSONException {
 		JSONArray locs = fromProps.optJSONArray("locators");
 		if(locs!=null) {
 			JSONObject toLocs = new JSONObject();
 			toProps.put("wrtskp_locators", toLocs);
 			addUnknownTagInfo(toLocs);
 			toLocs.put("unknowTagList", new ArrayList<>());
-			locs.forEach(loc -> addUnknownTagInfo((JSONObject)loc));
+			for(int i=0; i<locs.length();i++) addUnknownTagInfo(locs.getJSONObject(i));	
 			toLocs.put("locators", locs);
 		}
 		return toProps;
 	}
 
-	private static JSONObject addViews(JSONObject fromProps, JSONObject toProps) {
+	private static JSONObject addViews(JSONObject fromProps, JSONObject toProps) throws JSONException {
 		JSONArray views = fromProps.optJSONArray("views");
 		if(views!=null) {
-			views.forEach(view -> addUnknownTagInfo((JSONObject)view));
+			for(int i=0; i<views.length();i++) addUnknownTagInfo(views.getJSONObject(i));	
 			toProps.put("wrtskp_views", views);
 		}
 		return toProps;
 	}
 
-	private static void addUnknownTagInfo(JSONObject toLocs) {
+	private static void addUnknownTagInfo(JSONObject toLocs) throws JSONException {
 		toLocs.put("hasUnknowTagBits", false);
 		toLocs.put("tagBits", 0);
 		toLocs.put("unknownTagBitData", (Object)null);

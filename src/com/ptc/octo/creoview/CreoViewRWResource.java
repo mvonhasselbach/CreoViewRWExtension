@@ -26,7 +26,19 @@ public class CreoViewRWResource extends Resource {
 	public CreoViewRWResource( ) {
 		// TODO Auto-generated constructor stub
 	}
-
+	/**
+	 * 
+	 * @param fileRepository FileRepository of CreoView file
+	 * @param creoViewFile File path of the .pvz or .pvs to process
+	 * @param jsonFormat JSON format to return, one of [DEFAULT|WT_SED2_NESTED|WT_SED2_FLAT|WT_STRUCTURE2], 
+	 * 					 defaults to DEFAULT (any value other than the other two will result in DEFAULT), 
+	 * 					 where DEFAULT is the format that  Vuforia Studio outputs when metadataEnabled is set to true in builder-settings.json, 
+	 * 					 pvs2json is the format that Steve Ghee generated with his prototype implementation and 
+	 * 					 WT_SED2_NESTED is the format that is a 1:1 of the Windchill Structure2.class internal structure
+	 * @param returnedProperties
+	 * @return deeply nested JSON that reflects the structure of the nodes in CreoView with their attributes
+	 * @throws Exception
+	 */
 	@ThingworxServiceDefinition(name = "GetJSONFromCreoViewFile", description = "", category = "CreoView", isAllowOverride = false, aspects = {
 			"isAsync:false" })
 	@ThingworxServiceResult(name = "result", description = "deeply nested JSON that reflects the structure of the nodes in CreoView with their attributes", baseType = "JSON", aspects = {})

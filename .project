@@ -72,6 +72,11 @@
 			<location>C:/Users/mvonhasselbach/Desktop/Onshape-WT/SmartPlatforms/T00000001, Positioning Truck, A.4 (Design).pvz</location>
 		</link>
 		<link>
+			<name>data/mv_dit_truck_cabin_110_l_asm_quickview.json</name>
+			<type>1</type>
+			<location>C:/Users/mvonhasselbach/Downloads/mv_dit_truck_cabin_110_l_asm_quickview.json</location>
+		</link>
+		<link>
 			<name>data/response.pvs</name>
 			<type>1</type>
 			<location>C:/Users/mvonhasselbach/Desktop/Onshape-WT/SmartPlatforms/response.pvs</location>

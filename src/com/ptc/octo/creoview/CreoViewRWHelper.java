@@ -50,7 +50,7 @@ public class CreoViewRWHelper {
 	//private static int BUFFER_SIZE_4096 = 8192; 
 	public static final int PVS2JSON = 3;
 	public static final int WT_STRUCTURE2 = 2;
-	public static final int DEFAULT = 1;
+	public static final int DEFAULT = 1; //vuforia metadata.json format
 	public static final int WT_SED2_FLAT = 5;
 	public static final int WT_SED2_NESTED = 4;
 	private static final String ABSOLUTE_PREFIX = "absolute ";
@@ -225,22 +225,6 @@ public class CreoViewRWHelper {
 		return rootJson;
 	}
 	
-	public static String getPvsAsString(Structure2 sed2) throws Exception{
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		String pvsStr="";
-		try {
-			sed2.writeED(baos);
-			baos.flush();
-			pvsStr = baos.toString();
-		} catch (Exception e) {
-			e.printStackTrace();
-			
-		}finally {
-			baos.close();
-		}
-		return pvsStr;
-	}
-
 	/**
 	 * export in one of the formats, reduced to the specified properties
 	 * @param sed2
@@ -252,7 +236,7 @@ public class CreoViewRWHelper {
 	 */
 	public static JSONObject getJSONFromSed2Reduced2Props(Structure2 sed2, int format, String[] properties) throws Exception, JSONException {
 		JSONObject json = getJSONFromSed2(sed2, format);
-		if(properties !=null) reduceJSON2Props(json, properties);
+		if(properties !=null && properties.length>0) reduceJSON2Props(json, properties);
 		return json;
 	}
 	
@@ -286,8 +270,30 @@ public class CreoViewRWHelper {
 		}
 		for(String key : keys2remove)json.remove(key);
 	}
-
 	
+	/**
+	 * Outputs a String of the raw pvs
+	 * @param sed2
+	 * @return String of the raw pvs
+	 * @throws Exception
+	 */
+	public static String getPvsAsString(Structure2 sed2) throws Exception{
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		String pvsStr="";
+		try {
+			sed2.writeED(baos);
+			baos.flush();
+			pvsStr = baos.toString();
+		} catch (Exception e) {
+			e.printStackTrace();
+			
+		}finally {
+			baos.close();
+		}
+		return pvsStr;
+	}
+
+
 	/**
 	 * outputs the format that was produced by the first version of this Extension. 
 	 * It's a nested JSON with all kind of information, incl rel and abs trafo matrix
@@ -382,8 +388,8 @@ public class CreoViewRWHelper {
 
 	private static int outputRecurseDefault(Structure2.Comp comp, Structure2.CompInst compInst, JSONObject rootJson, JSONObject parentJson, int childIdx) throws JSONException {
 		JSONObject thisNode = new JSONObject();
-		String pPath = parentJson==null || parentJson.optString("Part ID Path")==null || "/".equals(parentJson.optString("Part ID Path")) ? "" : parentJson.getString("Part ID Path");
-		String pNamePath = parentJson==null || parentJson.optString("Part Path")==null ? "" : parentJson.getString("Part Path");
+		String pPath = parentJson==null || "/".equals(parentJson.optString("Part ID Path")) ? "" : parentJson.optString("Part ID Path");
+		String pNamePath = parentJson==null ? "" : parentJson.optString("Part Path");
 		if(compInst!=null) compInst.id = compInst.id!=null ? compInst.id : "@@PV-AUTO-ID@@"+ String.format("%03d", childIdx);
 		//String idPath = compInst==null ? "" : pPath+"/"+compInst.id;
 		//root node handling is not consistent

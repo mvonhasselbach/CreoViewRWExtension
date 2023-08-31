@@ -34,6 +34,12 @@ public class CreoViewTrafoHelper {
 		// TODO Auto-generated method stub
 
 	}
+	/**
+	 * based on the included relative trafo, it calculates absolute transformation for each node and adds it to each node.
+	 * @param parentNode
+	 * @return
+	 * @throws Exception
+	 */
 	public static DefaultMutableTreeNode calculateTransformation(DefaultMutableTreeNode parentNode) throws Exception {
 
 		Matrix4d pAbsMx4 = getAbsMatrix4dOfElement((JSONObject) parentNode.getUserObject());
@@ -51,6 +57,14 @@ public class CreoViewTrafoHelper {
 		}
 		return parentNode;
 	}
+	
+	/**
+	 * adds the trafo info as matrix4d as well as euler location to the json element
+	 * @param el
+	 * @param mat
+	 * @param prefix
+	 * @throws JSONException
+	 */
 	public static void addTrafoInfos(JSONObject el, Matrix4d mat, String prefix) throws JSONException {
 		String absLocation = getLocationfromMatrix(mat);
 		el.put(prefix+LOCATION, absLocation);

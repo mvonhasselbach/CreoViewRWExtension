@@ -6609,7 +6609,7 @@ public class Structure2 //extends Structure
 		 *    FileUtil.removeExtension( "C:\myFile.txt" )  // returns ".txt"
 		 *
 		 *  </pre>
-		 * @param   String - name of file
+		 * @param  filename String - name of file
 		 *
 		 * @return  extension of filename
 		 **/
@@ -6724,6 +6724,13 @@ public class Structure2 //extends Structure
     	 * <BR>
     	 * <B>Supported API: </B>false
     	 *
+    	 * @param ax x-angle
+    	 * @param ay y-angle
+    	 * @param az z-angle
+    	 * @param x x coordinate
+    	 * @param y	y coordinate
+    	 * @param z	z coordinate
+    	 * @param scale
     	 * @return a new Matrix4d
     	 **/
     	public static Matrix4d getMatrix4dFromLocation(double ax, double ay, double az, double x, double y, double z,

@@ -27,6 +27,8 @@ public class CreoViewRWResource extends Resource {
 		// TODO Auto-generated constructor stub
 	}
 	/**
+	 * Service that ready a pvz or pvs from a file in a TWX FileRepo and returns a json representation of the product structure.
+	 * It will add a couple of calculated attributes like the absolute position and aggregated bounding box info.
 	 * 
 	 * @param fileRepository FileRepository of CreoView file
 	 * @param creoViewFile File path of the .pvz or .pvs to process
@@ -35,7 +37,7 @@ public class CreoViewRWResource extends Resource {
 	 * 					 where DEFAULT is the format that  Vuforia Studio outputs when metadataEnabled is set to true in builder-settings.json, 
 	 * 					 pvs2json is the format that Steve Ghee generated with his prototype implementation and 
 	 * 					 WT_SED2_NESTED is the format that is a 1:1 of the Windchill Structure2.class internal structure
-	 * @param returnedProperties
+	 * @param returnedProperties comma-separated list of properties that should be returned. If not specified all properties in the CreoView nodes will be returned.
 	 * @return deeply nested JSON that reflects the structure of the nodes in CreoView with their attributes
 	 * @throws Exception
 	 */
@@ -47,7 +49,7 @@ public class CreoViewRWResource extends Resource {
 					"isRequired:true", "thingTemplate:FileRepository" }) String fileRepository,
 			@ThingworxServiceParameter(name = "CreoViewFile", description = "File path of the .pvz or .pvs to process ", baseType = "STRING", aspects = {
 					"isRequired:true" }) String creoViewFile,
-			@ThingworxServiceParameter(name = "JSONFormat", description = "JSON format to return, one of [DEFAULT|WT_SED2_NESTED|WT_SED2_FLAT|WT_STRUCTURE2], \ndefaults to DEFAULT (any value other than the other two will result in DEFAULT), \nwhere DEFAULT is the format that  Vuforia Studio outputs when metadataEnabled is set to true in builder-settings.json, \npvs2json is the format that Steve Ghee generated with his prototype implementation and \nWT_SED2_NESTED is the format that is a 1:1 of the Windchill Structure2.class internal structure", baseType = "STRING") String jsonFormat,
+			@ThingworxServiceParameter(name = "JSONFormat", description = "JSON format to return, one of [DEFAULT|WT_SED2_NESTED|WT_SED2_FLAT|WT_STRUCTURE2|PVS2JSON], \ndefaults to DEFAULT (any value other than the other two will result in DEFAULT), \nwhere DEFAULT is the format that  Vuforia Studio outputs when metadataEnabled is set to true in builder-settings.json, \npvs2json is the format that Steve Ghee generated with his prototype implementation and \nWT_SED2_NESTED is the format that is a 1:1 of the Windchill Structure2.class internal structure", baseType = "STRING") String jsonFormat,
 			@ThingworxServiceParameter(name = "ReturnedProperties", description = "comma-separated list of properties that should be returned. If not specified all properties in the CreoView nodes will be returned.", baseType = "STRING") String returnedProperties) throws Exception{
 		_logger.trace("Entering Service: GetJSONFromCreoViewFile");
 		
@@ -88,6 +90,17 @@ public class CreoViewRWResource extends Resource {
 		return pvJSON;
 	}
 
+	/**
+	 * Service that takes a json input and writes it back to the pvs binary format
+	 * 
+	 * @param json input json string. Must comply to format
+	 * @param jsonFormat JSON format of input, one of [DEFAULT|WT_SED2_NESTED|WT_SED2_FLAT], 
+	 * 					 defaults to DEFAULT, which is the format used with Vuforia Studio Metadata
+	 * @param pvsFile pvs filepath and name, relative to the FileRepository root, e.g. /pvzs/MyAsm.pvs .
+	 * 				  Intermediate folders will be created if needed.
+	 * @param fileRepository FileRepository where the pvs file will be generated in
+	 * @throws Exception
+	 */
 	@ThingworxServiceDefinition(name = "WritePVS", description = "", category = "CreoView", isAllowOverride = false, aspects = {
 			"isAsync:false" })
 	@ThingworxServiceResult(name = "Result", description = "", baseType = "NOTHING", aspects = {})

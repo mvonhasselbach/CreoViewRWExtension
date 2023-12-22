@@ -60,7 +60,7 @@ public class CreoViewRWHelper {
 	
 	/**
 	 * Convert pvs or the pvs in a pvz to different JSOn formats:
-	 * java com.ptc.octo.creoview.CreoViewRWHelper <pvs_or_pvz_file>
+	 * java com.ptc.octo.creoview.CreoViewRWHelper pvs_or_pvz_file>
 	 * 
 	 * Convert JSON to pvs:
 	 * java com.ptc.octo.creoview.CreoViewRWHelper import <json_file>
@@ -218,13 +218,48 @@ public class CreoViewRWHelper {
 	public static JSONObject getJSONFromSed2(Structure2 sed2, int format) throws Exception, JSONException {
 		if(format==WT_SED2_FLAT) return outputRecurseSed2(sed2.toTreeStructure(), new JSONObject(),null, false);
 		if(format==WT_SED2_NESTED) return outputRecurseSed2(sed2.toTreeStructure(), new JSONObject(),null, true);
-		//if(format==PVS2JSON) return xxx; 
 		if(format==WT_STRUCTURE2) return getIETreeJSON(sed2.getRootComp());
 		JSONObject rootJson = new JSONObject();
 		outputRecurseDefault(sed2.getRootComp(), null, rootJson, null, 0);
+		if(format==PVS2JSON) return  postprocess2newInlineMetadataJson(rootJson);		
 		return rootJson;
 	}
 	
+	private static JSONObject postprocess2newInlineMetadataJson(JSONObject rootJson) {
+		for(String nodeKey : JSONObject.getNames(rootJson)) {
+			JSONObject node = rootJson.getJSONObject(nodeKey);
+			JSONObject sysProps = node.getJSONObject("__PV_SystemProperties");
+			/*
+			   "__StructureProperties":{
+   					"Bounds":{"min":[-0.5,-0.5,-0.5],"max":[0.5,0.5,0.5]},
+  					"Location":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
+  				}			 
+			 */
+			JSONObject strProps = new JSONObject();
+			node.put("__StructureProperties", strProps);
+			
+			String[] bounds = sysProps.optString("Model Bounds").split(" ");
+			if(bounds.length==6) {
+				sysProps.remove("Model Bounds");
+				JSONObject boundsNode = new JSONObject();
+				strProps.put("Bounds", boundsNode);
+				boundsNode.put("min", Arrays.asList(Float.parseFloat(bounds[0]), Float.parseFloat(bounds[1]), Float.parseFloat(bounds[2])));
+				boundsNode.put("max", Arrays.asList(Float.parseFloat(bounds[3]), Float.parseFloat(bounds[4]), Float.parseFloat(bounds[5])));
+			}
+			String[] locs = sysProps.optString("Model Transformation").split(" ");
+			if(locs.length==16) {
+				sysProps.remove("Model Transformation");
+				strProps.put("Location", Arrays.asList(
+						Float.parseFloat(locs[0]),Float.parseFloat(locs[1]),Float.parseFloat(locs[2]),Float.parseFloat(locs[3]),
+						Float.parseFloat(locs[4]),Float.parseFloat(locs[5]),Float.parseFloat(locs[6]),Float.parseFloat(locs[7]),
+						Float.parseFloat(locs[8]),Float.parseFloat(locs[9]),Float.parseFloat(locs[10]),Float.parseFloat(locs[11]),
+						Float.parseFloat(locs[12]),Float.parseFloat(locs[13]),Float.parseFloat(locs[14]),Float.parseFloat(locs[15])
+						));			
+			}
+		}
+		return rootJson;
+	}
+
 	/**
 	 * export in one of the formats, reduced to the specified properties
 	 * @param sed2

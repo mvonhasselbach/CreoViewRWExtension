@@ -30,7 +30,7 @@ It support different output formats. See sample data sets in [./data](./data) :
    This format will be the basis for writing .pvs files as well. There is a **WT_SED2_FLAT** format as well that represents all nodes
    of the structure as a flat list, indexed by the ComponentID Path of each node, similar to the **Default** format.
    Both formats are more complete than the other formats. They can include Viewable, Views, ViewState, Appearance and Locators information when they are included in the pvz.
-3. the **PVS2JSON** format from Steve Ghee which is slightly extended and also includes bounding box info. (Sorry - This is not yet implemented!)
+3. the **PVS2JSON** format that is also produced & used by Steve Ghee's Locator widget which is a slightly modified metadata.json (aka Default) format that writes the bounding box and transformation info to a separate subnode **__StructureProperties**.
 
 Furthermore the Extension supports filtering of the returned attributes/properties. This can be handy to remove sensitive information 
 and also reduce the size of the returned data.
